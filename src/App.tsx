@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { AppState, SplitType, Transaction } from './types';
-import { loadAppState, saveAppState, SAMPLE_TRANSACTIONS } from './utils/storage';
+import { loadAppState, saveAppState, getFreshSampleTransactions } from './utils/storage';
+import { getLocalDateString } from './utils/formatters';
 import { Header } from './components/Header';
 import { HeroBalance } from './components/HeroBalance';
 import { QuickActions } from './components/QuickActions';
@@ -30,13 +31,17 @@ export function App() {
     saveAppState(state);
   }, [state]);
 
-  // Sync theme to root class
+  // Sync theme to root and body class
   useEffect(() => {
     const root = document.documentElement;
     if (state.theme === 'light') {
       root.classList.remove('dark');
+      document.body.classList.remove('bg-slate-950', 'text-slate-100');
+      document.body.classList.add('bg-slate-100', 'text-slate-900');
     } else {
       root.classList.add('dark');
+      document.body.classList.remove('bg-slate-100', 'text-slate-900');
+      document.body.classList.add('bg-slate-950', 'text-slate-100');
     }
   }, [state.theme]);
 
@@ -64,17 +69,28 @@ export function App() {
 
   // Save new or edited transaction
   const handleSaveTransaction = (txData: Omit<Transaction, 'id' | 'createdAt'>) => {
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
     if (editingTransaction) {
       setState((prev) => ({
         ...prev,
         transactions: prev.transactions.map((t) =>
-          t.id === editingTransaction.id ? { ...txData, id: t.id, createdAt: t.createdAt } : t
+          t.id === editingTransaction.id
+            ? {
+                ...txData,
+                id: t.id,
+                time: t.time || timeStr,
+                createdAt: t.createdAt,
+              }
+            : t
         ),
       }));
     } else {
       const newTx: Transaction = {
         ...txData,
         id: 'tx_' + Date.now(),
+        time: timeStr,
         createdAt: Date.now(),
       };
       setState((prev) => ({
@@ -96,18 +112,20 @@ export function App() {
 
   // Record a settlement
   const handleSettle = (amount: number, paidBy: string, beneficiaryId: string, note: string) => {
+    const now = new Date();
+    const roundedAmount = Math.round(amount * 100) / 100;
     const settleTx: Transaction = {
       id: 'settle_' + Date.now(),
       title: 'Settled Balance',
-      amount,
+      amount: roundedAmount,
       paidBy,
-      payerOwedAmount: amount,
+      payerOwedAmount: roundedAmount,
       beneficiaryId,
       splitType: 'you_paid_full',
       category: 'settlement',
-      date: new Date().toISOString().slice(0, 10),
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      note: note || 'Settled up',
+      date: getLocalDateString(now),
+      time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      note: note.trim() || 'Settled up',
       isSettlement: true,
       createdAt: Date.now(),
     };
@@ -123,7 +141,7 @@ export function App() {
     if (window.confirm('Reset all transactions to realistic sample demo data?')) {
       setState((prev) => ({
         ...prev,
-        transactions: SAMPLE_TRANSACTIONS,
+        transactions: getFreshSampleTransactions(),
       }));
       setIsSettingsOpen(false);
     }
@@ -141,7 +159,13 @@ export function App() {
   };
 
   return (
-    <div className={`min-h-screen ${state.theme === 'light' ? 'bg-slate-100 text-slate-900' : 'bg-slate-950 text-slate-100'} transition-colors duration-300 pb-20`}>
+    <div
+      className={`min-h-screen ${
+        state.theme === 'light'
+          ? 'bg-slate-100 text-slate-900'
+          : 'bg-slate-950 text-slate-100'
+      } transition-colors duration-300 pb-20`}
+    >
       {/* Top App Header */}
       <Header
         state={state}
