@@ -24,13 +24,17 @@ export const TransactionList: React.FC<TransactionListProps> = ({
   const activeUser = state.activeUserId === state.user1.id ? state.user1 : state.user2;
   const friend = state.activeUserId === state.user1.id ? state.user2 : state.user1;
 
-  // Filtered list
+  // Filtered and sorted list (chronological: newest first)
   const filtered = useMemo(() => {
-    return state.transactions.filter((tx) => {
-      // Search text
+    const list = state.transactions.filter((tx) => {
+      // Search text (title, note, or amounts)
+      const query = searchTerm.toLowerCase().trim();
       const matchesSearch =
-        tx.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (tx.note && tx.note.toLowerCase().includes(searchTerm.toLowerCase()));
+        !query ||
+        tx.title.toLowerCase().includes(query) ||
+        (tx.note && tx.note.toLowerCase().includes(query)) ||
+        tx.amount.toString().includes(query) ||
+        tx.payerOwedAmount.toString().includes(query);
 
       // Category
       const matchesCategory =
@@ -44,6 +48,16 @@ export const TransactionList: React.FC<TransactionListProps> = ({
 
       return matchesSearch && matchesCategory && matchesPayer;
     });
+
+    // Sort newest date/timestamp first
+    return list.sort((a, b) => {
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      if (!isNaN(dateA) && !isNaN(dateB) && dateB !== dateA) {
+        return dateB - dateA;
+      }
+      return (b.createdAt || 0) - (a.createdAt || 0);
+    });
   }, [state.transactions, searchTerm, selectedCategory, filterPayer, activeUser.id, friend.id]);
 
   return (
@@ -51,13 +65,13 @@ export const TransactionList: React.FC<TransactionListProps> = ({
       {/* Search and Filters Bar */}
       <div className="space-y-2.5">
         <div className="relative flex items-center">
-          <Search className="w-4 h-4 absolute left-3.5 text-slate-500" />
+          <Search className="w-4 h-4 absolute left-3.5 text-slate-400 dark:text-slate-500" />
           <input
             type="text"
-            placeholder="Search expenses, notes, places..."
+            placeholder="Search expenses, amounts, notes..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-slate-900/80 border border-slate-800 rounded-2xl text-xs font-medium text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
+            className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-medium text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all shadow-sm"
           />
         </div>
 
@@ -67,8 +81,8 @@ export const TransactionList: React.FC<TransactionListProps> = ({
             onClick={() => setFilterPayer('all')}
             className={`px-3 py-1.5 rounded-xl font-medium transition-all whitespace-nowrap ${
               filterPayer === 'all'
-                ? 'bg-slate-700 text-white font-semibold'
-                : 'bg-slate-900/80 text-slate-400 hover:text-slate-200 border border-slate-800'
+                ? 'bg-slate-800 text-white dark:bg-slate-700 dark:text-white font-semibold'
+                : 'bg-white dark:bg-slate-900/80 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 border border-slate-200 dark:border-slate-800'
             }`}
           >
             All Activity
@@ -77,8 +91,8 @@ export const TransactionList: React.FC<TransactionListProps> = ({
             onClick={() => setFilterPayer('me')}
             className={`px-3 py-1.5 rounded-xl font-medium transition-all whitespace-nowrap ${
               filterPayer === 'me'
-                ? 'bg-emerald-500/20 text-emerald-300 font-semibold border border-emerald-500/40'
-                : 'bg-slate-900/80 text-slate-400 hover:text-slate-200 border border-slate-800'
+                ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-semibold border border-emerald-500/40'
+                : 'bg-white dark:bg-slate-900/80 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 border border-slate-200 dark:border-slate-800'
             }`}
           >
             Paid by You
@@ -87,8 +101,8 @@ export const TransactionList: React.FC<TransactionListProps> = ({
             onClick={() => setFilterPayer('friend')}
             className={`px-3 py-1.5 rounded-xl font-medium transition-all whitespace-nowrap ${
               filterPayer === 'friend'
-                ? 'bg-rose-500/20 text-rose-300 font-semibold border border-rose-500/40'
-                : 'bg-slate-900/80 text-slate-400 hover:text-slate-200 border border-slate-800'
+                ? 'bg-rose-500/20 text-rose-700 dark:text-rose-300 font-semibold border border-rose-500/40'
+                : 'bg-white dark:bg-slate-900/80 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 border border-slate-200 dark:border-slate-800'
             }`}
           >
             Paid by {friend.name.split(' ')[0]}
@@ -98,7 +112,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({
           <select
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
-            className="px-2.5 py-1.5 rounded-xl bg-slate-900/80 border border-slate-800 text-slate-300 font-medium text-xs focus:outline-none focus:border-emerald-500"
+            className="px-2.5 py-1.5 rounded-xl bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-medium text-xs focus:outline-none focus:border-emerald-500 shadow-sm"
           >
             <option value="all">All Categories</option>
             {Object.values(CATEGORIES).map((cat) => (
@@ -112,12 +126,12 @@ export const TransactionList: React.FC<TransactionListProps> = ({
 
       {/* List Feed */}
       {filtered.length === 0 ? (
-        <div className="text-center py-12 px-4 rounded-3xl bg-slate-900/40 border border-slate-800/80">
-          <div className="w-12 h-12 mx-auto rounded-2xl bg-slate-800/60 flex items-center justify-center text-2xl mb-3">
+        <div className="text-center py-12 px-4 rounded-3xl bg-white/60 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/80">
+          <div className="w-12 h-12 mx-auto rounded-2xl bg-slate-100 dark:bg-slate-800/60 flex items-center justify-center text-2xl mb-3">
             🔍
           </div>
-          <h4 className="text-sm font-bold text-slate-200">No transactions found</h4>
-          <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">
+          <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">No transactions found</h4>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-xs mx-auto">
             {searchTerm || selectedCategory !== 'all' || filterPayer !== 'all'
               ? 'Try adjusting your search or category filters.'
               : 'Start tracking by recording your first expense together!'}
@@ -139,7 +153,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({
             return (
               <div
                 key={tx.id}
-                className="group relative flex items-center justify-between p-3.5 sm:p-4 rounded-2xl bg-slate-900/80 hover:bg-slate-800/80 border border-slate-800/80 hover:border-slate-700/80 transition-all shadow-sm"
+                className="group relative flex items-center justify-between p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900/80 hover:bg-slate-50 dark:hover:bg-slate-800/80 border border-slate-200 dark:border-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700/80 transition-all shadow-sm"
               >
                 {/* Left side: Icon + Title + Meta */}
                 <div className="flex items-center gap-3 min-w-0 flex-1 pr-3">
@@ -151,27 +165,38 @@ export const TransactionList: React.FC<TransactionListProps> = ({
 
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <h4 className="text-xs sm:text-sm font-bold text-slate-100 truncate">
+                      <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 truncate">
                         {tx.title}
                       </h4>
                       {isSettlement && (
-                        <span className="px-1.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-400 text-[10px] font-bold">
-                          Settlement
+                        <span className="px-1.5 py-0.5 rounded-md bg-teal-500/20 text-teal-700 dark:text-teal-400 text-[10px] font-bold">
+                          Settled
                         </span>
                       )}
                     </div>
 
-                    <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-400 truncate">
+                    <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-500 dark:text-slate-400 truncate">
                       <span>{formatDate(tx.date)}</span>
                       <span>•</span>
                       <span className="truncate">
-                        {youPaid ? 'You paid' : `${friend.name.split(' ')[0]} paid`}
-                        {tx.splitType === 'equal_split' && ' (split 50/50)'}
+                        {isSettlement
+                          ? youPaid
+                            ? `You settled to ${friend.name.split(' ')[0]}`
+                            : `${friend.name.split(' ')[0]} settled to you`
+                          : youPaid
+                          ? 'You paid'
+                          : `${friend.name.split(' ')[0]} paid`}
+                        {!isSettlement && tx.splitType === 'equal_split' && ' (50/50)'}
                       </span>
                       {tx.note && (
                         <>
                           <span>•</span>
-                          <span className="italic text-slate-500 truncate">{tx.note}</span>
+                          <span
+                            title={tx.note}
+                            className="italic text-slate-400 dark:text-slate-500 truncate max-w-[120px]"
+                          >
+                            {tx.note}
+                          </span>
                         </>
                       )}
                     </div>
@@ -185,24 +210,37 @@ export const TransactionList: React.FC<TransactionListProps> = ({
                     <div
                       className={`text-xs sm:text-sm font-bold flex items-center justify-end gap-1 ${
                         isSettlement
-                          ? 'text-teal-400'
+                          ? 'text-teal-600 dark:text-teal-400'
                           : youPaid
-                          ? 'text-emerald-400'
-                          : 'text-rose-400'
+                          ? 'text-emerald-600 dark:text-emerald-400'
+                          : 'text-rose-600 dark:text-rose-400'
                       }`}
                     >
-                      {youPaid && !isSettlement && <ArrowDownLeft className="w-3.5 h-3.5" />}
-                      {!youPaid && !isSettlement && <ArrowUpRight className="w-3.5 h-3.5" />}
-                      {isSettlement && <CheckCircle2 className="w-3.5 h-3.5" />}
-                      <span>
-                        {youPaid ? '+' : '-'}
-                        {formatMoney(tx.payerOwedAmount, state.currency)}
-                      </span>
+                      {isSettlement ? (
+                        <>
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>{formatMoney(tx.amount, state.currency)}</span>
+                        </>
+                      ) : (
+                        <>
+                          {youPaid ? (
+                            <ArrowDownLeft className="w-3.5 h-3.5" />
+                          ) : (
+                            <ArrowUpRight className="w-3.5 h-3.5" />
+                          )}
+                          <span>
+                            {youPaid ? '+' : '-'}
+                            {formatMoney(tx.payerOwedAmount, state.currency)}
+                          </span>
+                        </>
+                      )}
                     </div>
 
-                    {/* Total cost */}
-                    <p className="text-[10px] text-slate-500">
-                      total {formatMoney(tx.amount, state.currency)}
+                    {/* Total cost description */}
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500">
+                      {isSettlement
+                        ? 'Settlement'
+                        : `total ${formatMoney(tx.amount, state.currency)}`}
                     </p>
                   </div>
 
@@ -212,7 +250,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({
                       <button
                         onClick={() => onEdit(tx)}
                         title="Edit transaction"
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700/80 transition-colors"
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700/80 transition-colors"
                       >
                         <Edit2 className="w-3.5 h-3.5" />
                       </button>
@@ -220,7 +258,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({
                     <button
                       onClick={() => onDelete(tx.id)}
                       title="Delete transaction"
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>

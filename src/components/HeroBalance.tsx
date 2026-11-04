@@ -19,12 +19,12 @@ export const HeroBalance: React.FC<HeroBalanceProps> = ({ state, onOpenSettle, o
     friend.id
   );
 
-  const friendOwesYou = netBalance > 0;
-  const youOweFriend = netBalance < 0;
-  const isSettled = netBalance === 0;
+  const friendOwesYou = netBalance > 0.005;
+  const youOweFriend = netBalance < -0.005;
+  const isSettled = !friendOwesYou && !youOweFriend;
 
   return (
-    <div className="relative overflow-hidden rounded-3xl p-6 sm:p-7 shadow-2xl transition-all duration-300 border border-slate-800/80 bg-slate-900/90">
+    <div className="relative overflow-hidden rounded-3xl p-6 sm:p-7 shadow-xl dark:shadow-2xl transition-all duration-300 border border-slate-200/90 dark:border-slate-800/80 bg-white/95 dark:bg-slate-900/90">
       {/* Dynamic Background Glow based on balance */}
       <div
         className={`absolute -top-24 -right-24 w-72 h-72 rounded-full blur-3xl opacity-20 pointer-events-none transition-all duration-500 ${
@@ -50,10 +50,10 @@ export const HeroBalance: React.FC<HeroBalanceProps> = ({ state, onOpenSettle, o
         <div className="flex items-center gap-2">
           <span className="text-xl">{friend.avatar}</span>
           <div>
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Balance with
             </span>
-            <h2 className="text-sm font-bold text-slate-100">{friend.name}</h2>
+            <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">{friend.name}</h2>
           </div>
         </div>
 
@@ -61,15 +61,15 @@ export const HeroBalance: React.FC<HeroBalanceProps> = ({ state, onOpenSettle, o
         <span
           className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold tracking-wide border shadow-sm ${
             friendOwesYou
-              ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
+              ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
               : youOweFriend
-              ? 'bg-rose-500/15 border-rose-500/30 text-rose-400'
-              : 'bg-slate-700/40 border-slate-600/30 text-slate-300'
+              ? 'bg-rose-500/15 border-rose-500/30 text-rose-600 dark:text-rose-400'
+              : 'bg-teal-500/15 border-teal-500/30 text-teal-700 dark:text-teal-300'
           }`}
         >
           {friendOwesYou && <ArrowDownLeft className="w-3.5 h-3.5" />}
           {youOweFriend && <ArrowUpRight className="w-3.5 h-3.5" />}
-          {isSettled && <CheckCircle2 className="w-3.5 h-3.5 text-teal-400" />}
+          {isSettled && <CheckCircle2 className="w-3.5 h-3.5 text-teal-500 dark:text-teal-400" />}
           {friendOwesYou && `${friend.name.split(' ')[0]} owes you`}
           {youOweFriend && `You owe ${friend.name.split(' ')[0]}`}
           {isSettled && 'All Settled Up'}
@@ -82,17 +82,17 @@ export const HeroBalance: React.FC<HeroBalanceProps> = ({ state, onOpenSettle, o
           <span
             className={`text-4xl sm:text-5xl font-black tracking-tight drop-shadow-sm transition-colors ${
               friendOwesYou
-                ? 'text-emerald-400'
+                ? 'text-emerald-600 dark:text-emerald-400'
                 : youOweFriend
-                ? 'text-rose-400'
-                : 'text-slate-100'
+                ? 'text-rose-600 dark:text-rose-400'
+                : 'text-slate-800 dark:text-slate-100'
             }`}
           >
             {formatMoney(netBalance, state.currency)}
           </span>
         </div>
 
-        <p className="mt-1 text-xs text-slate-400">
+        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
           {friendOwesYou && `You're in the green! ${friend.name.split(' ')[0]} should pay you back.`}
           {youOweFriend && `You're in the red. Don't forget to pay ${friend.name.split(' ')[0]} back!`}
           {isSettled && 'No pending debts between you two. High five! 🙌'}
@@ -100,26 +100,30 @@ export const HeroBalance: React.FC<HeroBalanceProps> = ({ state, onOpenSettle, o
       </div>
 
       {/* Sub metrics stats */}
-      <div className="grid grid-cols-2 gap-2.5 mt-5 p-3 rounded-2xl bg-slate-950/40 border border-slate-800/60">
+      <div className="grid grid-cols-2 gap-2.5 mt-5 p-3 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200/80 dark:border-slate-800/60">
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-emerald-500/15 flex items-center justify-center text-emerald-400">
+          <div className="w-7 h-7 rounded-lg bg-emerald-500/15 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
             <ArrowDownLeft className="w-4 h-4" />
           </div>
           <div>
-            <p className="text-[10px] text-slate-400 uppercase font-semibold">Total Lent</p>
-            <p className="text-xs sm:text-sm font-bold text-slate-200">
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-semibold">
+              Total Lent
+            </p>
+            <p className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">
               {formatMoney(owedToActiveUser, state.currency)}
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-rose-500/15 flex items-center justify-center text-rose-400">
+          <div className="w-7 h-7 rounded-lg bg-rose-500/15 flex items-center justify-center text-rose-600 dark:text-rose-400 shrink-0">
             <ArrowUpRight className="w-4 h-4" />
           </div>
           <div>
-            <p className="text-[10px] text-slate-400 uppercase font-semibold">Total Borrowed</p>
-            <p className="text-xs sm:text-sm font-bold text-slate-200">
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-semibold">
+              Total Borrowed
+            </p>
+            <p className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">
               {formatMoney(owedByActiveUser, state.currency)}
             </p>
           </div>
@@ -131,9 +135,9 @@ export const HeroBalance: React.FC<HeroBalanceProps> = ({ state, onOpenSettle, o
         <button
           onClick={onOpenSettle}
           disabled={isSettled}
-          className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-sm tracking-wide transition-all shadow-lg active:scale-[0.98] ${
+          className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-sm tracking-wide transition-all shadow-md active:scale-[0.98] ${
             isSettled
-              ? 'bg-slate-800 text-slate-500 border border-slate-700/50 cursor-not-allowed opacity-60'
+              ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-300/50 dark:border-slate-700/50 cursor-not-allowed opacity-60'
               : friendOwesYou
               ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 hover:from-emerald-400 hover:to-teal-400 shadow-emerald-500/20'
               : 'bg-gradient-to-r from-rose-500 to-amber-500 text-white hover:from-rose-400 hover:to-amber-400 shadow-rose-500/20'
@@ -145,10 +149,10 @@ export const HeroBalance: React.FC<HeroBalanceProps> = ({ state, onOpenSettle, o
 
         <button
           onClick={onOpenShare}
-          className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-slate-800/90 hover:bg-slate-700/80 text-slate-200 border border-slate-700/60 font-medium text-sm transition-all active:scale-[0.98] shadow-md"
+          className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/90 dark:hover:bg-slate-700/80 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700/60 font-medium text-sm transition-all active:scale-[0.98] shadow-sm"
           title="Send WhatsApp or copy balance breakdown"
         >
-          <Share2 className="w-4 h-4 text-emerald-400" />
+          <Share2 className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
           <span className="hidden sm:inline">Send Ping</span>
         </button>
       </div>

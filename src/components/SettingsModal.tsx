@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppState, Currency, UserProfile } from '../types';
-import { SUPPORTED_CURRENCIES } from '../utils/currencies';
+import { SUPPORTED_CURRENCIES, DEFAULT_CURRENCY } from '../utils/currencies';
 import { exportToCSV } from '../utils/storage';
-import { X, Download, Upload, RotateCcw, Trash2, Check, Smartphone, User } from 'lucide-react';
+import { X, Download, Upload, RotateCcw, Trash2, Check, Smartphone, User, AlertCircle } from 'lucide-react';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -28,14 +28,40 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [u1, setU1] = useState<UserProfile>(state.user1);
   const [u2, setU2] = useState<UserProfile>(state.user2);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  // Close on Escape key
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
+  // Sync u1 and u2 whenever modal opens or state updates
+  useEffect(() => {
+    if (isOpen) {
+      setU1(state.user1);
+      setU2(state.user2);
+      setErrorMessage('');
+      setSavedSuccess(false);
+    }
+  }, [isOpen, state.user1, state.user2]);
 
   if (!isOpen) return null;
 
   const handleSaveProfiles = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!u1.name.trim() || !u2.name.trim()) {
+      setErrorMessage('Both names are required.');
+      return;
+    }
+    setErrorMessage('');
     onUpdateState({
-      user1: u1,
-      user2: u2,
+      user1: { ...u1, name: u1.name.trim() },
+      user2: { ...u2, name: u2.name.trim() },
     });
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 2000);
@@ -51,10 +77,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', `account_balancer_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute('download', `netzero_ledger_${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const handleExportJSON = () => {
@@ -63,10 +90,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `account_balancer_backup_${new Date().toISOString().slice(0, 10)}.json`;
+    link.download = `netzero_backup_${new Date().toISOString().slice(0, 10)}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const handleImportJSON = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -76,45 +104,74 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     reader.onload = (event) => {
       try {
         const parsed = JSON.parse(event.target?.result as string);
-        if (parsed.transactions && parsed.user1 && parsed.user2) {
-          onUpdateState(parsed);
+        if (
+          parsed &&
+          Array.isArray(parsed.transactions) &&
+          parsed.user1 &&
+          parsed.user2 &&
+          typeof parsed.user1.name === 'string' &&
+          typeof parsed.user2.name === 'string'
+        ) {
+          const sanitizedState: Partial<AppState> = {
+            transactions: parsed.transactions,
+            user1: {
+              ...state.user1,
+              ...parsed.user1,
+              name: parsed.user1.name.trim() || state.user1.name,
+            },
+            user2: {
+              ...state.user2,
+              ...parsed.user2,
+              name: parsed.user2.name.trim() || state.user2.name,
+            },
+            currency: parsed.currency || DEFAULT_CURRENCY,
+            theme: parsed.theme === 'light' ? 'light' : 'dark',
+          };
+          onUpdateState(sanitizedState);
           alert('Backup restored successfully!');
           onClose();
         } else {
-          alert('Invalid backup file format.');
+          alert('Invalid backup file format. Missing user profiles or transactions.');
         }
       } catch {
         alert('Failed to parse JSON file.');
       }
     };
     reader.readAsText(file);
+    // Reset file input value so selecting the same file triggers onChange
+    e.target.value = '';
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-lg bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200"
+    >
+      <div className="relative w-full max-w-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col text-slate-900 dark:text-white">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-center gap-2">
             <span className="text-xl">⚙️</span>
-            <h3 className="text-base font-bold text-white">App Settings</h3>
+            <h3 className="text-base font-bold text-slate-900 dark:text-white">App Settings</h3>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Section Tabs */}
-        <div className="flex border-b border-slate-800 bg-slate-950/40 px-6 pt-2">
+        <div className="flex border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/40 px-6 pt-2">
           <button
             onClick={() => setActiveSection('profiles')}
             className={`pb-2.5 px-3 text-xs font-bold border-b-2 transition-all ${
               activeSection === 'profiles'
-                ? 'border-emerald-500 text-emerald-400'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
+                ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400'
+                : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
             }`}
           >
             Friend Profiles
@@ -123,8 +180,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             onClick={() => setActiveSection('currency')}
             className={`pb-2.5 px-3 text-xs font-bold border-b-2 transition-all ${
               activeSection === 'currency'
-                ? 'border-emerald-500 text-emerald-400'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
+                ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400'
+                : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
             }`}
           >
             Currency
@@ -133,8 +190,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             onClick={() => setActiveSection('data')}
             className={`pb-2.5 px-3 text-xs font-bold border-b-2 transition-all ${
               activeSection === 'data'
-                ? 'border-emerald-500 text-emerald-400'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
+                ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400'
+                : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
             }`}
           >
             Backup & Data
@@ -146,28 +203,40 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {/* SECTION: PROFILES */}
           {activeSection === 'profiles' && (
             <form onSubmit={handleSaveProfiles} className="space-y-6">
+              {errorMessage && (
+                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-medium flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{errorMessage}</span>
+                </div>
+              )}
+
               {/* User 1 */}
-              <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-3">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 space-y-3">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
                   <User className="w-3.5 h-3.5" />
                   Primary Profile (You)
                 </h4>
                 <div className="grid grid-cols-3 gap-2">
                   <div className="col-span-2">
-                    <label className="text-[10px] text-slate-400 font-semibold uppercase">Name</label>
+                    <label className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold uppercase">
+                      Name
+                    </label>
                     <input
                       type="text"
+                      required
                       value={u1.name}
                       onChange={(e) => setU1({ ...u1, name: e.target.value })}
-                      className="w-full px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-xl text-xs font-bold text-white focus:outline-none"
+                      className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] text-slate-400 font-semibold uppercase">Avatar</label>
+                    <label className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold uppercase">
+                      Avatar
+                    </label>
                     <select
                       value={u1.avatar}
                       onChange={(e) => setU1({ ...u1, avatar: e.target.value })}
-                      className="w-full px-2 py-1.5 bg-slate-900 border border-slate-700 rounded-xl text-xs font-bold text-white focus:outline-none"
+                      className="w-full px-2 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
                     >
                       {EMOJI_OPTIONS.map((em) => (
                         <option key={em} value={em}>
@@ -180,50 +249,59 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                 <div className="grid grid-cols-2 gap-2 pt-1">
                   <div>
-                    <label className="text-[10px] text-slate-400 font-semibold uppercase">UPI ID</label>
+                    <label className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold uppercase">
+                      UPI ID
+                    </label>
                     <input
                       type="text"
                       placeholder="e.g. name@upi"
                       value={u1.upiId || ''}
                       onChange={(e) => setU1({ ...u1, upiId: e.target.value })}
-                      className="w-full px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white focus:outline-none"
+                      className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] text-slate-400 font-semibold uppercase">PayPal Username</label>
+                    <label className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold uppercase">
+                      PayPal Username
+                    </label>
                     <input
                       type="text"
                       placeholder="e.g. username"
                       value={u1.paypalUser || ''}
                       onChange={(e) => setU1({ ...u1, paypalUser: e.target.value })}
-                      className="w-full px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white focus:outline-none"
+                      className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
                     />
                   </div>
                 </div>
               </div>
 
               {/* User 2 */}
-              <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-3">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 space-y-3">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5">
                   <User className="w-3.5 h-3.5" />
                   Best Friend Profile
                 </h4>
                 <div className="grid grid-cols-3 gap-2">
                   <div className="col-span-2">
-                    <label className="text-[10px] text-slate-400 font-semibold uppercase">Name</label>
+                    <label className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold uppercase">
+                      Name
+                    </label>
                     <input
                       type="text"
+                      required
                       value={u2.name}
                       onChange={(e) => setU2({ ...u2, name: e.target.value })}
-                      className="w-full px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-xl text-xs font-bold text-white focus:outline-none"
+                      className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] text-slate-400 font-semibold uppercase">Avatar</label>
+                    <label className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold uppercase">
+                      Avatar
+                    </label>
                     <select
                       value={u2.avatar}
                       onChange={(e) => setU2({ ...u2, avatar: e.target.value })}
-                      className="w-full px-2 py-1.5 bg-slate-900 border border-slate-700 rounded-xl text-xs font-bold text-white focus:outline-none"
+                      className="w-full px-2 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
                     >
                       {EMOJI_OPTIONS.map((em) => (
                         <option key={em} value={em}>
@@ -236,23 +314,27 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                 <div className="grid grid-cols-2 gap-2 pt-1">
                   <div>
-                    <label className="text-[10px] text-slate-400 font-semibold uppercase">UPI ID</label>
+                    <label className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold uppercase">
+                      UPI ID
+                    </label>
                     <input
                       type="text"
                       placeholder="e.g. friend@upi"
                       value={u2.upiId || ''}
                       onChange={(e) => setU2({ ...u2, upiId: e.target.value })}
-                      className="w-full px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white focus:outline-none"
+                      className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] text-slate-400 font-semibold uppercase">PayPal Username</label>
+                    <label className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold uppercase">
+                      PayPal Username
+                    </label>
                     <input
                       type="text"
                       placeholder="e.g. friendpaypal"
                       value={u2.paypalUser || ''}
                       onChange={(e) => setU2({ ...u2, paypalUser: e.target.value })}
-                      className="w-full px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white focus:outline-none"
+                      className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
                     />
                   </div>
                 </div>
@@ -271,7 +353,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {/* SECTION: CURRENCY */}
           {activeSection === 'currency' && (
             <div className="space-y-3">
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 Choose the primary currency you and your friend use for debts:
               </p>
               <div className="grid grid-cols-1 gap-2">
@@ -281,12 +363,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     onClick={() => handleCurrencyChange(curr)}
                     className={`flex items-center justify-between p-3 rounded-2xl border text-xs font-semibold transition-all ${
                       state.currency.code === curr.code
-                        ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300'
-                        : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-slate-200'
+                        ? 'bg-emerald-500/20 border-emerald-500 text-emerald-700 dark:text-emerald-300'
+                        : 'bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                     }`}
                   >
                     <span>{curr.name}</span>
-                    <span className="text-sm font-bold text-white px-2 py-0.5 rounded-lg bg-slate-800">
+                    <span className="text-sm font-bold text-slate-900 dark:text-white px-2 py-0.5 rounded-lg bg-slate-200 dark:bg-slate-800">
                       {curr.symbol}
                     </span>
                   </button>
@@ -299,56 +381,56 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {activeSection === 'data' && (
             <div className="space-y-4">
               {/* Export Buttons */}
-              <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-3">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300">
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 space-y-3">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
                   Export & Reports
                 </h4>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={handleExportCSV}
-                    className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700"
+                    className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-semibold border border-slate-200 dark:border-slate-700 transition-colors"
                   >
-                    <Download className="w-4 h-4 text-emerald-400" />
+                    <Download className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
                     <span>Download CSV</span>
                   </button>
                   <button
                     onClick={handleExportJSON}
-                    className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700"
+                    className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-semibold border border-slate-200 dark:border-slate-700 transition-colors"
                   >
-                    <Download className="w-4 h-4 text-teal-400" />
-                    <span>Export JSON Backup</span>
+                    <Download className="w-4 h-4 text-teal-500 dark:text-teal-400" />
+                    <span>Export JSON</span>
                   </button>
                 </div>
               </div>
 
               {/* Import Backup */}
-              <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-2">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300">
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 space-y-2">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
                   Restore from Backup
                 </h4>
-                <label className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-slate-700 cursor-pointer">
-                  <Upload className="w-4 h-4 text-indigo-400" />
+                <label className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-300 text-xs font-semibold border border-slate-200 dark:border-slate-700 cursor-pointer transition-colors">
+                  <Upload className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
                   <span>Choose JSON Backup File</span>
                   <input type="file" accept=".json" onChange={handleImportJSON} className="hidden" />
                 </label>
               </div>
 
               {/* Sample Data & Reset */}
-              <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-2">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300">
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 space-y-2">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
                   Danger & Testing Zone
                 </h4>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={onResetSampleData}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-medium text-amber-400 border border-amber-500/20"
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-medium text-amber-600 dark:text-amber-400 border border-amber-500/20 transition-colors"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
                     <span>Load Demo Data</span>
                   </button>
                   <button
                     onClick={onClearAll}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-xs font-medium text-rose-400 border border-rose-500/20"
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-xs font-medium text-rose-600 dark:text-rose-400 border border-rose-500/20 transition-colors"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                     <span>Clear All Data</span>
@@ -357,11 +439,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
 
               {/* PWA Phone tip */}
-              <div className="p-4 rounded-2xl bg-slate-950/40 border border-slate-800 flex items-start gap-3">
-                <Smartphone className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
-                <div className="text-xs text-slate-400 space-y-1">
-                  <p className="font-bold text-slate-200">Use on your phone like an app:</p>
-                  <p>Open this page on your phone browser &rarr; Tap "Share" &rarr; select <strong>"Add to Home Screen"</strong>.</p>
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 flex items-start gap-3">
+                <Smartphone className="w-5 h-5 text-emerald-500 dark:text-emerald-400 shrink-0 mt-0.5" />
+                <div className="text-xs text-slate-600 dark:text-slate-400 space-y-1">
+                  <p className="font-bold text-slate-900 dark:text-slate-200">
+                    Use on your phone like an app:
+                  </p>
+                  <p>
+                    Open this page on your phone browser &rarr; Tap "Share" &rarr; select{' '}
+                    <strong>"Add to Home Screen"</strong>.
+                  </p>
                 </div>
               </div>
             </div>
