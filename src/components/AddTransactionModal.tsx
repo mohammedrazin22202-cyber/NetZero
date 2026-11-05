@@ -392,9 +392,35 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
           {/* Date & Note */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
-                Date
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                  Date
+                </label>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setDate(getLocalDateString())}
+                    className={`px-1.5 py-0.5 rounded text-[10px] font-semibold transition-colors ${
+                      date === getLocalDateString()
+                        ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300'
+                        : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+                    }`}
+                  >
+                    Today
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDate(getLocalDateString(new Date(Date.now() - 86400000)))}
+                    className={`px-1.5 py-0.5 rounded text-[10px] font-semibold transition-colors ${
+                      date === getLocalDateString(new Date(Date.now() - 86400000))
+                        ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300'
+                        : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+                    }`}
+                  >
+                    Yesterday
+                  </button>
+                </div>
+              </div>
               <div className="relative flex items-center">
                 <Calendar className="w-4 h-4 absolute left-3 text-slate-400" />
                 <input

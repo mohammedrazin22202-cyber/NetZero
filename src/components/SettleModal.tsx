@@ -23,7 +23,7 @@ export const SettleModal: React.FC<SettleModalProps> = ({ isOpen, onClose, state
 
   const [settleAmount, setSettleAmount] = useState<string>(defaultAmount.toFixed(2));
   const [showQR, setShowQR] = useState(false);
-  const [paymentMode, setPaymentMode] = useState<'upi' | 'paypal' | 'cash'>('upi');
+  const [paymentMode, setPaymentMode] = useState<'upi' | 'paypal' | 'venmo' | 'cash'>('upi');
   const [note, setNote] = useState('Account balance settled');
 
   // Close on Escape key
@@ -41,10 +41,18 @@ export const SettleModal: React.FC<SettleModalProps> = ({ isOpen, onClose, state
     if (isOpen) {
       setSettleAmount(defaultAmount.toFixed(2));
       setShowQR(false);
-      setPaymentMode(creditor.upiId ? 'upi' : creditor.paypalUser ? 'paypal' : 'cash');
+      setPaymentMode(
+        creditor.upiId
+          ? 'upi'
+          : creditor.paypalUser
+          ? 'paypal'
+          : creditor.venmoUser
+          ? 'venmo'
+          : 'cash'
+      );
       setNote('Account balance settled');
     }
-  }, [isOpen, defaultAmount, creditor.upiId, creditor.paypalUser]);
+  }, [isOpen, defaultAmount, creditor.upiId, creditor.paypalUser, creditor.venmoUser]);
 
   if (!isOpen || Math.abs(netBalance) < 0.005) return null;
 
@@ -64,11 +72,18 @@ export const SettleModal: React.FC<SettleModalProps> = ({ isOpen, onClose, state
       ? `https://paypal.me/${creditor.paypalUser}/${amountToSettle.toFixed(2)}`
       : '';
 
+  const venmoUrl =
+    creditor.venmoUser && isAmountValid
+      ? `https://venmo.com/${creditor.venmoUser}?txn=pay&amount=${amountToSettle.toFixed(2)}&note=Account+Settlement`
+      : '';
+
   const qrValue =
     paymentMode === 'upi' && upiUrl
       ? upiUrl
       : paymentMode === 'paypal' && paypalUrl
       ? paypalUrl
+      : paymentMode === 'venmo' && venmoUrl
+      ? venmoUrl
       : `Payment of ${state.currency.symbol}${isAmountValid ? amountToSettle.toFixed(2) : '0'} to ${creditor.name}`;
 
   const handleConfirm = () => {
@@ -175,7 +190,7 @@ export const SettleModal: React.FC<SettleModalProps> = ({ isOpen, onClose, state
               </button>
             </div>
 
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <button
                 type="button"
                 onClick={() => {
@@ -202,7 +217,21 @@ export const SettleModal: React.FC<SettleModalProps> = ({ isOpen, onClose, state
                     : 'bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400'
                 }`}
               >
-                PayPal / Web
+                PayPal
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setPaymentMode('venmo');
+                  setShowQR(true);
+                }}
+                className={`p-2.5 rounded-xl border text-center text-xs font-bold transition-all ${
+                  paymentMode === 'venmo'
+                    ? 'bg-sky-500/20 border-sky-500 text-sky-700 dark:text-sky-300'
+                    : 'bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400'
+                }`}
+              >
+                Venmo
               </button>
               <button
                 type="button"
@@ -240,6 +269,15 @@ export const SettleModal: React.FC<SettleModalProps> = ({ isOpen, onClose, state
             </div>
           )}
 
+          {paymentMode === 'venmo' && !creditor.venmoUser && (
+            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-2 text-xs text-amber-700 dark:text-amber-400">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>
+                No Venmo username configured for {creditor.name}. You can add one in Settings.
+              </span>
+            </div>
+          )}
+
           {/* QR Code Container */}
           {showQR && (
             <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/90 border border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center animate-in fade-in duration-200">
@@ -256,6 +294,17 @@ export const SettleModal: React.FC<SettleModalProps> = ({ isOpen, onClose, state
                   className="mt-3 flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 hover:underline font-semibold"
                 >
                   <span>Open direct PayPal link</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              )}
+              {paymentMode === 'venmo' && venmoUrl && (
+                <a
+                  href={venmoUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-3 flex items-center gap-1.5 text-xs text-sky-600 dark:text-sky-400 hover:underline font-semibold"
+                >
+                  <span>Open direct Venmo link</span>
                   <ExternalLink className="w-3.5 h-3.5" />
                 </a>
               )}

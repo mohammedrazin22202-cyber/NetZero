@@ -247,7 +247,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 pt-1">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
                   <div>
                     <label className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold uppercase">
                       UPI ID
@@ -269,6 +269,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       placeholder="e.g. username"
                       value={u1.paypalUser || ''}
                       onChange={(e) => setU1({ ...u1, paypalUser: e.target.value })}
+                      className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold uppercase">
+                      Venmo Username
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. username"
+                      value={u1.venmoUser || ''}
+                      onChange={(e) => setU1({ ...u1, venmoUser: e.target.value })}
                       className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
                     />
                   </div>
@@ -312,7 +324,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 pt-1">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
                   <div>
                     <label className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold uppercase">
                       UPI ID
@@ -334,6 +346,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       placeholder="e.g. friendpaypal"
                       value={u2.paypalUser || ''}
                       onChange={(e) => setU2({ ...u2, paypalUser: e.target.value })}
+                      className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold uppercase">
+                      Venmo Username
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. friendvenmo"
+                      value={u2.venmoUser || ''}
+                      onChange={(e) => setU2({ ...u2, venmoUser: e.target.value })}
                       className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
                     />
                   </div>

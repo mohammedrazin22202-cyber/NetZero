@@ -44,10 +44,15 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ state }) => {
     totalSpentTogether > 0 ? Math.round((spentByActiveUser / totalSpentTogether) * 100) : 0;
   const friendPercent = totalSpentTogether > 0 ? 100 - activeUserPercent : 0;
 
+  const maxExpense =
+    expenseTransactions.length > 0
+      ? [...expenseTransactions].sort((a, b) => b.amount - a.amount)[0]
+      : null;
+
   return (
     <div className="space-y-5 animate-in fade-in duration-300">
       {/* Top Cards */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <div className="p-4 rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 shadow-sm">
           <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase mb-1">
             <DollarSign className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" />
@@ -73,6 +78,19 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ state }) => {
             )}
           </p>
           <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Per activity / outing</p>
+        </div>
+
+        <div className="col-span-2 sm:col-span-1 p-4 rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 shadow-sm">
+          <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase mb-1">
+            <Award className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
+            <span>Top Outing</span>
+          </div>
+          <p className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white truncate">
+            {maxExpense ? formatMoney(maxExpense.amount, state.currency) : formatMoney(0, state.currency)}
+          </p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 truncate">
+            {maxExpense ? maxExpense.title : 'No outings yet'}
+          </p>
         </div>
       </div>
 

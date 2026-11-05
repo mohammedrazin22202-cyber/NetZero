@@ -110,6 +110,11 @@ export function generateWhatsAppMessage(
         `💳 *PayPal:* https://paypal.me/${activeUser.paypalUser}/${netBalance.toFixed(2)}`
       );
     }
+    if (activeUser.venmoUser) {
+      paymentMethods.push(
+        `💳 *Venmo:* https://venmo.com/${activeUser.venmoUser}`
+      );
+    }
     if (paymentMethods.length > 0) {
       text += `\n*Settle Up Details:*\n` + paymentMethods.join('\n') + `\n`;
     }

@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { AppState, Transaction } from '../types';
 import { CATEGORIES } from '../utils/categories';
 import { formatDate, formatMoney } from '../utils/formatters';
-import { Search, Edit2, Trash2, ArrowUpRight, ArrowDownLeft, CheckCircle2 } from 'lucide-react';
+import { Search, Edit2, Trash2, ArrowUpRight, ArrowDownLeft, CheckCircle2, X } from 'lucide-react';
 
 interface TransactionListProps {
   state: AppState;
@@ -71,8 +71,18 @@ export const TransactionList: React.FC<TransactionListProps> = ({
             placeholder="Search expenses, amounts, notes..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-medium text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all shadow-sm"
+            className="w-full pl-10 pr-9 py-2.5 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-medium text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all shadow-sm"
           />
+          {searchTerm && (
+            <button
+              type="button"
+              onClick={() => setSearchTerm('')}
+              className="absolute right-3 p-1 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              title="Clear search"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
 
         {/* Filter Pills */}
@@ -122,6 +132,25 @@ export const TransactionList: React.FC<TransactionListProps> = ({
             ))}
           </select>
         </div>
+
+        {/* Active Filter Info Banner */}
+        {(searchTerm || selectedCategory !== 'all' || filterPayer !== 'all') && (
+          <div className="flex items-center justify-between px-1 text-[11px] text-slate-500 dark:text-slate-400">
+            <span>
+              Showing {filtered.length} of {state.transactions.length} items
+            </span>
+            <button
+              onClick={() => {
+                setSearchTerm('');
+                setSelectedCategory('all');
+                setFilterPayer('all');
+              }}
+              className="text-emerald-600 dark:text-emerald-400 hover:underline font-semibold"
+            >
+              Reset filters
+            </button>
+          </div>
+        )}
       </div>
 
       {/* List Feed */}
