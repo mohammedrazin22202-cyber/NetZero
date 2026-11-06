@@ -45,7 +45,7 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Perspective Switcher */}
           <button
             onClick={onTogglePerspective}
-            title={`Switch view to ${otherUser.name}`}
+            title={`Switch view to ${otherUser.name} (Press P)`}
             className="group flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/90 dark:hover:bg-slate-700/80 border border-slate-200 dark:border-slate-700/60 text-xs font-semibold text-slate-800 dark:text-slate-200 transition-all active:scale-95 shadow-sm"
           >
             <span className="text-sm">{activeUser.avatar}</span>
@@ -85,7 +85,7 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             onClick={onToggleTheme}
             className="p-2 rounded-xl text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/80 border border-transparent transition-all"
-            title="Toggle theme"
+            title="Toggle theme (Press T)"
           >
             {state.theme === 'dark' ? (
               <Sun className="w-4 h-4 text-amber-400" />

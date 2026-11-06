@@ -160,15 +160,24 @@ export const SettleModal: React.FC<SettleModalProps> = ({ isOpen, onClose, state
                 onClick={() => setSettleAmount(defaultAmount.toFixed(2))}
                 className="px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 text-xs font-bold border border-emerald-500/30"
               >
-                Clear Full Balance ({formatMoney(defaultAmount, state.currency)})
+                100% Full ({formatMoney(defaultAmount, state.currency)})
               </button>
-              {defaultAmount > 20 && (
+              {defaultAmount > 5 && (
                 <button
                   type="button"
                   onClick={() => setSettleAmount((defaultAmount / 2).toFixed(2))}
                   className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-medium"
                 >
-                  Pay Half ({formatMoney(defaultAmount / 2, state.currency)})
+                  50% Half ({formatMoney(defaultAmount / 2, state.currency)})
+                </button>
+              )}
+              {defaultAmount > 20 && (
+                <button
+                  type="button"
+                  onClick={() => setSettleAmount((defaultAmount / 4).toFixed(2))}
+                  className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-medium"
+                >
+                  25% ({formatMoney(defaultAmount / 4, state.currency)})
                 </button>
               )}
             </div>

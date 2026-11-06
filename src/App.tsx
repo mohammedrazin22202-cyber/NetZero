@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { AppState, SplitType, Transaction } from './types';
 import { loadAppState, saveAppState, getFreshSampleTransactions } from './utils/storage';
-import { getLocalDateString } from './utils/formatters';
+import { getLocalDateString, calculateBalance } from './utils/formatters';
 import { Header } from './components/Header';
 import { HeroBalance } from './components/HeroBalance';
 import { QuickActions } from './components/QuickActions';
@@ -59,6 +59,42 @@ export function App() {
       theme: prev.theme === 'dark' ? 'light' : 'dark',
     }));
   };
+
+  // Global keyboard shortcuts (N for new expense, S for settle, P for perspective, T for theme)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT' ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+
+      if (e.key === 'n' || e.key === 'N') {
+        e.preventDefault();
+        handleOpenAddWithPreset('equal_split');
+      } else if (e.key === 's' || e.key === 'S') {
+        const { netBalance } = calculateBalance(state.transactions, state.user1.id, state.user2.id);
+        if (Math.abs(netBalance) > 0.005) {
+          e.preventDefault();
+          setIsSettleOpen(true);
+        }
+      } else if (e.key === 'p' || e.key === 'P') {
+        e.preventDefault();
+        handleTogglePerspective();
+      } else if (e.key === 't' || e.key === 'T') {
+        e.preventDefault();
+        handleToggleTheme();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [state.transactions, state.user1.id, state.user2.id]);
 
   // Open Add modal with preset
   const handleOpenAddWithPreset = (preset?: SplitType) => {
@@ -208,7 +244,7 @@ export function App() {
       <div className="fixed bottom-6 right-6 z-30">
         <button
           onClick={() => handleOpenAddWithPreset('equal_split')}
-          title="Add new expense or lending"
+          title="Add new expense or lending (Press N)"
           className="flex items-center gap-2 p-4 sm:px-5 sm:py-3.5 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-sm shadow-2xl shadow-emerald-500/40 transition-all hover:scale-105 active:scale-95"
         >
           <Plus className="w-5 h-5 stroke-[2.5]" />

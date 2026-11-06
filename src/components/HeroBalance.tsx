@@ -13,7 +13,7 @@ export const HeroBalance: React.FC<HeroBalanceProps> = ({ state, onOpenSettle, o
   const activeUser = state.activeUserId === state.user1.id ? state.user1 : state.user2;
   const friend = state.activeUserId === state.user1.id ? state.user2 : state.user1;
 
-  const { netBalance, owedToActiveUser, owedByActiveUser } = calculateBalance(
+  const { netBalance, owedToActiveUser, owedByActiveUser, settledTotal } = calculateBalance(
     state.transactions,
     activeUser.id,
     friend.id
@@ -100,31 +100,45 @@ export const HeroBalance: React.FC<HeroBalanceProps> = ({ state, onOpenSettle, o
       </div>
 
       {/* Sub metrics stats */}
-      <div className="grid grid-cols-2 gap-2.5 mt-5 p-3 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200/80 dark:border-slate-800/60">
-        <div className="flex items-center gap-2.5">
+      <div className="grid grid-cols-3 gap-2 mt-5 p-3 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200/80 dark:border-slate-800/60">
+        <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg bg-emerald-500/15 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
             <ArrowDownLeft className="w-4 h-4" />
           </div>
-          <div>
-            <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-semibold">
-              Total Lent
+          <div className="min-w-0">
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-semibold truncate">
+              Lent
             </p>
-            <p className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">
+            <p className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200 truncate">
               {formatMoney(owedToActiveUser, state.currency)}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg bg-rose-500/15 flex items-center justify-center text-rose-600 dark:text-rose-400 shrink-0">
             <ArrowUpRight className="w-4 h-4" />
           </div>
-          <div>
-            <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-semibold">
-              Total Borrowed
+          <div className="min-w-0">
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-semibold truncate">
+              Borrowed
             </p>
-            <p className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">
+            <p className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200 truncate">
               {formatMoney(owedByActiveUser, state.currency)}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-lg bg-teal-500/15 flex items-center justify-center text-teal-600 dark:text-teal-400 shrink-0">
+            <CheckCircle2 className="w-4 h-4" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-semibold truncate">
+              Settled
+            </p>
+            <p className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200 truncate">
+              {formatMoney(settledTotal, state.currency)}
             </p>
           </div>
         </div>
@@ -135,6 +149,7 @@ export const HeroBalance: React.FC<HeroBalanceProps> = ({ state, onOpenSettle, o
         <button
           onClick={onOpenSettle}
           disabled={isSettled}
+          title={isSettled ? 'All settled up' : 'Settle Up (Press S)'}
           className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-sm tracking-wide transition-all shadow-md active:scale-[0.98] ${
             isSettled
               ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-300/50 dark:border-slate-700/50 cursor-not-allowed opacity-60'

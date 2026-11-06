@@ -20,11 +20,12 @@ export const TransactionList: React.FC<TransactionListProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [filterPayer, setFilterPayer] = useState<'all' | 'me' | 'friend'>('all');
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'highest'>('newest');
 
   const activeUser = state.activeUserId === state.user1.id ? state.user1 : state.user2;
   const friend = state.activeUserId === state.user1.id ? state.user2 : state.user1;
 
-  // Filtered and sorted list (chronological: newest first)
+  // Filtered and sorted list
   const filtered = useMemo(() => {
     const list = state.transactions.filter((tx) => {
       // Search text (title, note, or amounts)
@@ -49,16 +50,21 @@ export const TransactionList: React.FC<TransactionListProps> = ({
       return matchesSearch && matchesCategory && matchesPayer;
     });
 
-    // Sort newest date/timestamp first
+    // Sort according to selection
     return list.sort((a, b) => {
+      if (sortBy === 'highest') {
+        return b.amount - a.amount;
+      }
       const dateA = new Date(a.date).getTime();
       const dateB = new Date(b.date).getTime();
       if (!isNaN(dateA) && !isNaN(dateB) && dateB !== dateA) {
-        return dateB - dateA;
+        return sortBy === 'oldest' ? dateA - dateB : dateB - dateA;
       }
-      return (b.createdAt || 0) - (a.createdAt || 0);
+      return sortBy === 'oldest'
+        ? (a.createdAt || 0) - (b.createdAt || 0)
+        : (b.createdAt || 0) - (a.createdAt || 0);
     });
-  }, [state.transactions, searchTerm, selectedCategory, filterPayer, activeUser.id, friend.id]);
+  }, [state.transactions, searchTerm, selectedCategory, filterPayer, sortBy, activeUser.id, friend.id]);
 
   return (
     <div className="space-y-4">
@@ -131,10 +137,21 @@ export const TransactionList: React.FC<TransactionListProps> = ({
               </option>
             ))}
           </select>
+
+          {/* Sort Dropdown */}
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as any)}
+            className="px-2.5 py-1.5 rounded-xl bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-medium text-xs focus:outline-none focus:border-emerald-500 shadow-sm"
+          >
+            <option value="newest">🕒 Newest</option>
+            <option value="oldest">📅 Oldest</option>
+            <option value="highest">💰 Highest</option>
+          </select>
         </div>
 
         {/* Active Filter Info Banner */}
-        {(searchTerm || selectedCategory !== 'all' || filterPayer !== 'all') && (
+        {(searchTerm || selectedCategory !== 'all' || filterPayer !== 'all' || sortBy !== 'newest') && (
           <div className="flex items-center justify-between px-1 text-[11px] text-slate-500 dark:text-slate-400">
             <span>
               Showing {filtered.length} of {state.transactions.length} items
@@ -144,6 +161,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({
                 setSearchTerm('');
                 setSelectedCategory('all');
                 setFilterPayer('all');
+                setSortBy('newest');
               }}
               className="text-emerald-600 dark:text-emerald-400 hover:underline font-semibold"
             >
