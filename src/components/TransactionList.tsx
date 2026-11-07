@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { AppState, Transaction } from '../types';
 import { CATEGORIES } from '../utils/categories';
 import { formatDate, formatMoney } from '../utils/formatters';
-import { Search, Edit2, Trash2, ArrowUpRight, ArrowDownLeft, CheckCircle2, X } from 'lucide-react';
+import { Search, Edit2, Trash2, ArrowUpRight, ArrowDownLeft, CheckCircle2, X, Camera } from 'lucide-react';
 
 interface TransactionListProps {
   state: AppState;
@@ -21,6 +21,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [filterPayer, setFilterPayer] = useState<'all' | 'me' | 'friend'>('all');
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'highest'>('newest');
+  const [viewingReceipt, setViewingReceipt] = useState<string | null>(null);
 
   const activeUser = state.activeUserId === state.user1.id ? state.user1 : state.user2;
   const friend = state.activeUserId === state.user1.id ? state.user2 : state.user1;
@@ -211,7 +212,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({
                   </div>
 
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 truncate">
                         {tx.title}
                       </h4>
@@ -219,6 +220,22 @@ export const TransactionList: React.FC<TransactionListProps> = ({
                         <span className="px-1.5 py-0.5 rounded-md bg-teal-500/20 text-teal-700 dark:text-teal-400 text-[10px] font-bold">
                           Settled
                         </span>
+                      )}
+                      {tx.items && tx.items.length > 0 && (
+                        <span className="px-1.5 py-0.5 rounded-md bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 text-[10px] font-semibold">
+                          {tx.items.length} items
+                        </span>
+                      )}
+                      {tx.receiptUrl && (
+                        <button
+                          type="button"
+                          onClick={() => setViewingReceipt(tx.receiptUrl!)}
+                          className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/25 text-[10px] font-semibold"
+                          title="View attached receipt"
+                        >
+                          <Camera className="w-3 h-3" />
+                          <span>Receipt</span>
+                        </button>
                       )}
                     </div>
 
@@ -314,6 +331,40 @@ export const TransactionList: React.FC<TransactionListProps> = ({
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Receipt Lightbox Modal */}
+      {viewingReceipt && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in"
+          onClick={() => setViewingReceipt(null)}
+        >
+          <div
+            className="relative max-w-2xl max-h-[90vh] bg-white dark:bg-slate-900 rounded-2xl overflow-hidden shadow-2xl p-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-3 border-b border-slate-100 dark:border-slate-800">
+              <span className="text-sm font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                <Camera className="w-4 h-4 text-emerald-500" />
+                Attached Receipt
+              </span>
+              <button
+                type="button"
+                onClick={() => setViewingReceipt(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-2 overflow-auto max-h-[75vh] flex justify-center">
+              <img
+                src={viewingReceipt}
+                alt="Receipt"
+                className="max-w-full max-h-[70vh] rounded-lg object-contain shadow-sm"
+              />
+            </div>
+          </div>
         </div>
       )}
     </div>

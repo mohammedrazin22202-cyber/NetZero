@@ -1,21 +1,65 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { AppState, Category } from '../types';
 import { CATEGORIES } from '../utils/categories';
 import { formatMoney } from '../utils/formatters';
-import { PieChart, TrendingUp, Award, DollarSign } from 'lucide-react';
+import {
+  PieChart,
+  TrendingUp,
+  Award,
+  DollarSign,
+  Target,
+  Printer,
+  Calendar,
+  AlertTriangle,
+  CheckCircle2,
+  ArrowUpRight,
+  ArrowDownRight,
+  Edit2,
+  Check,
+} from 'lucide-react';
 
 interface AnalyticsViewProps {
   state: AppState;
+  onUpdateBudget?: (friendId: string, budget: number) => void;
 }
 
-export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ state }) => {
+export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ state, onUpdateBudget }) => {
   const activeUser = state.activeUserId === state.user1.id ? state.user1 : state.user2;
   const friend = state.activeUserId === state.user1.id ? state.user2 : state.user1;
+  const currentFriendId = state.selectedFriendId || state.user2.id;
+
+  const currentBudget = state.monthlyBudgets?.[currentFriendId] || 0;
+  const [isEditingBudget, setIsEditingBudget] = useState(false);
+  const [budgetInput, setBudgetInput] = useState(currentBudget ? currentBudget.toString() : '');
 
   // Filter out settlements for spending analytics
   const expenseTransactions = state.transactions.filter((t) => !t.isSettlement);
 
   const totalSpentTogether = expenseTransactions.reduce((acc, t) => acc + t.amount, 0);
+
+  // Month-over-Month calculation
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth(); // 0-indexed
+
+  const currentMonthExpenses = expenseTransactions.filter((t) => {
+    const d = new Date(t.date);
+    return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+  });
+  const currentMonthSpend = currentMonthExpenses.reduce((acc, t) => acc + t.amount, 0);
+
+  const prevMonthDate = new Date(currentYear, currentMonth - 1, 1);
+  const prevYear = prevMonthDate.getFullYear();
+  const prevMonth = prevMonthDate.getMonth();
+
+  const prevMonthExpenses = expenseTransactions.filter((t) => {
+    const d = new Date(t.date);
+    return d.getFullYear() === prevYear && d.getMonth() === prevMonth;
+  });
+  const prevMonthSpend = prevMonthExpenses.reduce((acc, t) => acc + t.amount, 0);
+
+  const momChange =
+    prevMonthSpend > 0 ? ((currentMonthSpend - prevMonthSpend) / prevMonthSpend) * 100 : null;
 
   // Spent by active user vs friend
   const spentByActiveUser = expenseTransactions
@@ -49,8 +93,40 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ state }) => {
       ? [...expenseTransactions].sort((a, b) => b.amount - a.amount)[0]
       : null;
 
+  const handleSaveBudget = () => {
+    const num = parseFloat(budgetInput);
+    if (!isNaN(num) && num >= 0 && onUpdateBudget) {
+      onUpdateBudget(currentFriendId, num);
+    }
+    setIsEditingBudget(false);
+  };
+
+  const budgetPercent = currentBudget > 0 ? Math.min((currentMonthSpend / currentBudget) * 100, 100) : 0;
+  const isOverBudget = currentBudget > 0 && currentMonthSpend > currentBudget;
+
   return (
     <div className="space-y-5 animate-in fade-in duration-300">
+      {/* Action Header: Month Summary & Print Statement */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-emerald-500" />
+            Financial Insights & Statement
+          </h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Insights for shared ledger with {friend.name}
+          </p>
+        </div>
+        <button
+          onClick={() => window.print()}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/80 transition-colors shadow-sm"
+          title="Print or export statement"
+        >
+          <Printer className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
+          <span>Statement</span>
+        </button>
+      </div>
+
       {/* Top Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <div className="p-4 rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 shadow-sm">
@@ -69,15 +145,29 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ state }) => {
         <div className="p-4 rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 shadow-sm">
           <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase mb-1">
             <TrendingUp className="w-3.5 h-3.5 text-teal-500 dark:text-teal-400" />
-            <span>Average Expense</span>
+            <span>This Month</span>
           </div>
           <p className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
-            {formatMoney(
-              expenseTransactions.length > 0 ? totalSpentTogether / expenseTransactions.length : 0,
-              state.currency
-            )}
+            {formatMoney(currentMonthSpend, state.currency)}
           </p>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Per activity / outing</p>
+          <div className="flex items-center gap-1 text-[11px] mt-1">
+            {momChange !== null ? (
+              <span
+                className={`flex items-center font-bold ${
+                  momChange > 0 ? 'text-amber-500' : 'text-emerald-500'
+                }`}
+              >
+                {momChange > 0 ? (
+                  <ArrowUpRight className="w-3 h-3" />
+                ) : (
+                  <ArrowDownRight className="w-3 h-3" />
+                )}
+                {Math.abs(momChange).toFixed(0)}% vs last mo
+              </span>
+            ) : (
+              <span className="text-slate-400 dark:text-slate-500">First month tracked</span>
+            )}
+          </div>
         </div>
 
         <div className="col-span-2 sm:col-span-1 p-4 rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 shadow-sm">
@@ -94,7 +184,95 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ state }) => {
         </div>
       </div>
 
-      {/* Who paid more comparison bar */}
+      {/* Monthly Budget Tracker Card */}
+      <div className="p-5 rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Target className="w-4 h-4 text-emerald-500" />
+            <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+              Monthly Shared Budget
+            </h3>
+          </div>
+          {!isEditingBudget ? (
+            <button
+              onClick={() => {
+                setBudgetInput(currentBudget ? currentBudget.toString() : '');
+                setIsEditingBudget(true);
+              }}
+              className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1"
+            >
+              <Edit2 className="w-3 h-3" />
+              <span>{currentBudget > 0 ? 'Edit Limit' : 'Set Budget'}</span>
+            </button>
+          ) : (
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min="0"
+                step="10"
+                value={budgetInput}
+                onChange={(e) => setBudgetInput(e.target.value)}
+                placeholder="e.g. 500"
+                className="w-24 px-2 py-0.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              />
+              <button
+                onClick={handleSaveBudget}
+                className="p-1 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600"
+              >
+                <Check className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+        </div>
+
+        {currentBudget > 0 ? (
+          <div>
+            <div className="flex items-center justify-between text-xs mb-2">
+              <span className="font-semibold text-slate-700 dark:text-slate-300">
+                {formatMoney(currentMonthSpend, state.currency)} of {formatMoney(currentBudget, state.currency)} spent
+              </span>
+              <span
+                className={`font-bold flex items-center gap-1 ${
+                  isOverBudget
+                    ? 'text-rose-600 dark:text-rose-400'
+                    : 'text-slate-600 dark:text-slate-400'
+                }`}
+              >
+                {isOverBudget ? (
+                  <>
+                    <AlertTriangle className="w-3.5 h-3.5 text-rose-500" />
+                    Over by {formatMoney(currentMonthSpend - currentBudget, state.currency)}!
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                    {formatMoney(currentBudget - currentMonthSpend, state.currency)} left
+                  </>
+                )}
+              </span>
+            </div>
+
+            <div className="w-full h-2.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+              <div
+                style={{ width: `${budgetPercent}%` }}
+                className={`h-full rounded-full transition-all duration-500 ${
+                  isOverBudget
+                    ? 'bg-rose-500'
+                    : budgetPercent > 80
+                    ? 'bg-amber-500'
+                    : 'bg-emerald-500'
+                }`}
+              />
+            </div>
+          </div>
+        ) : (
+          <p className="text-xs text-slate-400 dark:text-slate-500 py-2">
+            No spending budget set for this friend. Click &quot;Set Budget&quot; to keep monthly shared spending in check.
+          </p>
+        )}
+      </div>
+
+      {/* Upfront Payer Comparison Bar */}
       <div className="p-5 rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 shadow-sm">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">

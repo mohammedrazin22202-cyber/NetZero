@@ -30,27 +30,57 @@ export type Category =
   | 'settlement' 
   | 'other';
 
+export interface ItemizedSplitItem {
+  id: string;
+  title: string;
+  amount: number;
+  assignedTo: 'active_user' | 'friend' | 'shared';
+}
+
 export interface Transaction {
   id: string;
   title: string;
   amount: number; // Total amount of transaction
   paidBy: string; // User ID who paid upfront
-  payerOwedAmount: number; // Amount owed to the payer (e.g. for equal split of 100, payer is owed 50)
+  payerOwedAmount: number; // Amount owed to the payer
   beneficiaryId: string; // The person who benefits/owes
   splitType: SplitType;
   category: Category;
   date: string; // YYYY-MM-DD
   time?: string; // HH:mm
   note?: string;
+  receiptUrl?: string; // Optional image attachment
+  items?: ItemizedSplitItem[];
   isSettlement?: boolean;
   createdAt: number;
 }
 
+export interface RecurringExpense {
+  id: string;
+  friendId: string;
+  title: string;
+  amount: number;
+  paidBy: string;
+  beneficiaryId?: string;
+  splitType: SplitType;
+  category: Category;
+  dayOfMonth: number;
+  note?: string;
+  lastLoggedMonth?: string; // "YYYY-MM"
+  lastLogged?: string;
+}
+
 export interface AppState {
-  user1: UserProfile; // Primary user (default "You")
-  user2: UserProfile; // Best Friend
-  activeUserId: string; // Currently viewing as user1 or user2
+  currentUser: UserProfile; // Primary user ("You")
+  friends: UserProfile[]; // All friends
+  selectedFriendId: string; // Currently selected friend
+  user1: UserProfile; // = currentUser (backward compat)
+  user2: UserProfile; // = active friend (backward compat)
+  activeUserId: string; // Viewing as currentUser or friend
   currency: Currency;
-  transactions: Transaction[];
+  transactions: Transaction[]; // Active friend's transactions
+  friendTransactions: Record<string, Transaction[]>; // [friendId]: Transaction[]
+  monthlyBudgets: Record<string, number>; // [friendId]: monthly budget
+  recurringExpenses: RecurringExpense[];
   theme: 'dark' | 'light';
 }

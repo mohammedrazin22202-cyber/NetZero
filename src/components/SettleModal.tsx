@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { AppState } from '../types';
 import { calculateBalance, formatMoney } from '../utils/formatters';
+import { triggerConfetti } from '../utils/confetti';
+import { triggerHaptic } from '../utils/haptics';
 import { QRCodeDisplay } from './QRCodeDisplay';
 import { X, Check, QrCode, ExternalLink, AlertCircle } from 'lucide-react';
 
@@ -89,6 +91,13 @@ export const SettleModal: React.FC<SettleModalProps> = ({ isOpen, onClose, state
   const handleConfirm = () => {
     if (!isAmountValid) return;
     onSettle(amountToSettle, debtor.id, creditor.id, note);
+    // If settling full or near full balance, trigger celebration
+    if (Math.abs(amountToSettle - defaultAmount) < 0.02) {
+      triggerConfetti();
+      triggerHaptic('success');
+    } else {
+      triggerHaptic('medium');
+    }
     onClose();
   };
 

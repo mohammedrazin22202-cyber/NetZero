@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
-import { AppState, SplitType, Transaction } from './types';
+import { AppState, SplitType, Transaction, UserProfile, RecurringExpense } from './types';
 import { loadAppState, saveAppState, getFreshSampleTransactions } from './utils/storage';
 import { getLocalDateString, calculateBalance } from './utils/formatters';
+import { triggerConfetti } from './utils/confetti';
+import { triggerHaptic } from './utils/haptics';
 import { Header } from './components/Header';
 import { HeroBalance } from './components/HeroBalance';
 import { QuickActions } from './components/QuickActions';
@@ -11,6 +13,8 @@ import { AddTransactionModal } from './components/AddTransactionModal';
 import { SettleModal } from './components/SettleModal';
 import { ShareModal } from './components/ShareModal';
 import { SettingsModal } from './components/SettingsModal';
+import { RecurringExpensesModal } from './components/RecurringExpensesModal';
+import { InstallPrompt } from './components/InstallPrompt';
 import { Plus } from 'lucide-react';
 
 export function App() {
@@ -25,6 +29,7 @@ export function App() {
   const [isSettleOpen, setIsSettleOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isRecurringOpen, setIsRecurringOpen] = useState(false);
 
   // Sync state to local storage on change
   useEffect(() => {
@@ -45,8 +50,9 @@ export function App() {
     }
   }, [state.theme]);
 
-  // Toggle user perspective (Viewing as Alex vs Sam)
+  // Toggle user perspective (Viewing as Alex vs Current Friend)
   const handleTogglePerspective = () => {
+    triggerHaptic('light');
     setState((prev) => ({
       ...prev,
       activeUserId: prev.activeUserId === prev.user1.id ? prev.user2.id : prev.user1.id,
@@ -54,10 +60,130 @@ export function App() {
   };
 
   const handleToggleTheme = () => {
+    triggerHaptic('light');
     setState((prev) => ({
       ...prev,
       theme: prev.theme === 'dark' ? 'light' : 'dark',
     }));
+  };
+
+  // Multi-friend selection
+  const handleSelectFriend = (friendId: string) => {
+    setState((prev) => {
+      const targetFriend = prev.friends.find((f) => f.id === friendId) || prev.user2;
+      const friendTxs = prev.friendTransactions[friendId] || [];
+      return {
+        ...prev,
+        selectedFriendId: friendId,
+        user2: targetFriend,
+        transactions: friendTxs,
+        activeUserId: prev.currentUser.id,
+      };
+    });
+  };
+
+  // Add new friend to multi-friend ledger
+  const handleAddFriend = (friendData: Omit<UserProfile, 'id'>) => {
+    const newId = 'user_' + Date.now();
+    const newFriend: UserProfile = {
+      ...friendData,
+      id: newId,
+    };
+
+    setState((prev) => ({
+      ...prev,
+      friends: [...prev.friends, newFriend],
+      selectedFriendId: newId,
+      user2: newFriend,
+      transactions: [],
+      friendTransactions: {
+        ...prev.friendTransactions,
+        [newId]: [],
+      },
+      activeUserId: prev.currentUser.id,
+    }));
+  };
+
+  // Monthly Budget update
+  const handleUpdateBudget = (friendId: string, budget: number) => {
+    setState((prev) => ({
+      ...prev,
+      monthlyBudgets: {
+        ...prev.monthlyBudgets,
+        [friendId]: budget,
+      },
+    }));
+    triggerHaptic('success');
+  };
+
+  // Recurring bills management
+  const handleAddRecurring = (expense: Omit<RecurringExpense, 'id'>) => {
+    const newRec: RecurringExpense = {
+      ...expense,
+      id: 'rec_' + Date.now(),
+    };
+    setState((prev) => ({
+      ...prev,
+      recurringExpenses: [...(prev.recurringExpenses || []), newRec],
+    }));
+    triggerHaptic('success');
+  };
+
+  const handleDeleteRecurring = (id: string) => {
+    setState((prev) => ({
+      ...prev,
+      recurringExpenses: (prev.recurringExpenses || []).filter((r) => r.id !== id),
+    }));
+    triggerHaptic('light');
+  };
+
+  const handleLogRecurring = (rec: RecurringExpense) => {
+    const now = new Date();
+    const today = getLocalDateString(now);
+    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    let payerOwedAmount = rec.amount;
+    if (rec.splitType === 'equal_split') {
+      payerOwedAmount = Math.round((rec.amount / 2) * 100) / 100;
+    }
+
+    const activeFriendId = state.selectedFriendId || state.user2.id;
+    const beneficiaryId =
+      rec.beneficiaryId || (rec.paidBy === state.currentUser.id ? activeFriendId : state.currentUser.id);
+
+    const tx: Transaction = {
+      id: 'tx_rec_' + Date.now(),
+      title: `${rec.title} (Recurring)`,
+      amount: rec.amount,
+      paidBy: rec.paidBy,
+      payerOwedAmount,
+      beneficiaryId,
+      splitType: rec.splitType,
+      category: rec.category,
+      date: today,
+      time: timeStr,
+      note: `Auto-logged recurring bill on day ${rec.dayOfMonth}`,
+      createdAt: Date.now(),
+    };
+
+    setState((prev) => {
+      const activeFriendId = prev.selectedFriendId || prev.user2.id;
+      const updatedTxs = [tx, ...prev.transactions];
+      const updatedRecs = (prev.recurringExpenses || []).map((r) =>
+        r.id === rec.id ? { ...r, lastLogged: today } : r
+      );
+      return {
+        ...prev,
+        transactions: updatedTxs,
+        friendTransactions: {
+          ...prev.friendTransactions,
+          [activeFriendId]: updatedTxs,
+        },
+        recurringExpenses: updatedRecs,
+      };
+    });
+
+    triggerHaptic('success');
   };
 
   // Global keyboard shortcuts (N for new expense, S for settle, P for perspective, T for theme)
@@ -98,6 +224,7 @@ export function App() {
 
   // Open Add modal with preset
   const handleOpenAddWithPreset = (preset?: SplitType) => {
+    triggerHaptic('light');
     setEditingTransaction(null);
     setInitialSplit(preset || 'equal_split');
     setIsAddOpen(true);
@@ -108,10 +235,12 @@ export function App() {
     const now = new Date();
     const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    if (editingTransaction) {
-      setState((prev) => ({
-        ...prev,
-        transactions: prev.transactions.map((t) =>
+    setState((prev) => {
+      const activeFriendId = prev.selectedFriendId || prev.user2.id;
+      let updatedTxs: Transaction[];
+
+      if (editingTransaction) {
+        updatedTxs = prev.transactions.map((t) =>
           t.id === editingTransaction.id
             ? {
                 ...txData,
@@ -120,29 +249,46 @@ export function App() {
                 createdAt: t.createdAt,
               }
             : t
-        ),
-      }));
-    } else {
-      const newTx: Transaction = {
-        ...txData,
-        id: 'tx_' + Date.now(),
-        time: timeStr,
-        createdAt: Date.now(),
-      };
-      setState((prev) => ({
+        );
+      } else {
+        const newTx: Transaction = {
+          ...txData,
+          id: 'tx_' + Date.now(),
+          time: timeStr,
+          createdAt: Date.now(),
+        };
+        updatedTxs = [newTx, ...prev.transactions];
+      }
+
+      return {
         ...prev,
-        transactions: [newTx, ...prev.transactions],
-      }));
-    }
+        transactions: updatedTxs,
+        friendTransactions: {
+          ...prev.friendTransactions,
+          [activeFriendId]: updatedTxs,
+        },
+      };
+    });
+
+    triggerHaptic('success');
   };
 
   // Delete transaction
   const handleDeleteTransaction = (id: string) => {
     if (window.confirm('Are you sure you want to delete this transaction?')) {
-      setState((prev) => ({
-        ...prev,
-        transactions: prev.transactions.filter((t) => t.id !== id),
-      }));
+      setState((prev) => {
+        const activeFriendId = prev.selectedFriendId || prev.user2.id;
+        const updatedTxs = prev.transactions.filter((t) => t.id !== id);
+        return {
+          ...prev,
+          transactions: updatedTxs,
+          friendTransactions: {
+            ...prev.friendTransactions,
+            [activeFriendId]: updatedTxs,
+          },
+        };
+      });
+      triggerHaptic('light');
     }
   };
 
@@ -166,32 +312,73 @@ export function App() {
       createdAt: Date.now(),
     };
 
-    setState((prev) => ({
-      ...prev,
-      transactions: [settleTx, ...prev.transactions],
-    }));
+    setState((prev) => {
+      const activeFriendId = prev.selectedFriendId || prev.user2.id;
+      const updatedTxs = [settleTx, ...prev.transactions];
+      return {
+        ...prev,
+        transactions: updatedTxs,
+        friendTransactions: {
+          ...prev.friendTransactions,
+          [activeFriendId]: updatedTxs,
+        },
+      };
+    });
+
+    triggerConfetti();
+    triggerHaptic('success');
   };
 
   // Reset sample data
   const handleResetSampleData = () => {
-    if (window.confirm('Reset all transactions to realistic sample demo data?')) {
-      setState((prev) => ({
-        ...prev,
-        transactions: getFreshSampleTransactions(),
-      }));
+    if (window.confirm('Reset current friend transactions to realistic sample demo data?')) {
+      const fresh = getFreshSampleTransactions();
+      setState((prev) => {
+        const activeFriendId = prev.selectedFriendId || prev.user2.id;
+        return {
+          ...prev,
+          transactions: fresh,
+          friendTransactions: {
+            ...prev.friendTransactions,
+            [activeFriendId]: fresh,
+          },
+        };
+      });
       setIsSettingsOpen(false);
+      triggerHaptic('medium');
     }
   };
 
   // Clear all data
   const handleClearAll = () => {
-    if (window.confirm('Clear all transactions? This cannot be undone.')) {
-      setState((prev) => ({
-        ...prev,
-        transactions: [],
-      }));
+    if (window.confirm('Clear all transactions with this friend? This cannot be undone.')) {
+      setState((prev) => {
+        const activeFriendId = prev.selectedFriendId || prev.user2.id;
+        return {
+          ...prev,
+          transactions: [],
+          friendTransactions: {
+            ...prev.friendTransactions,
+            [activeFriendId]: [],
+          },
+        };
+      });
       setIsSettingsOpen(false);
+      triggerHaptic('medium');
     }
+  };
+
+  const handleUpdateState = (partial: Partial<AppState>) => {
+    setState((prev) => {
+      const next = { ...prev, ...partial };
+      if (partial.user1) {
+        next.currentUser = partial.user1;
+      }
+      if (partial.user2) {
+        next.friends = prev.friends.map((f) => (f.id === partial.user2!.id ? partial.user2! : f));
+      }
+      return next;
+    });
   };
 
   return (
@@ -210,6 +397,9 @@ export function App() {
         onTogglePerspective={handleTogglePerspective}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onToggleTheme={handleToggleTheme}
+        onSelectFriend={handleSelectFriend}
+        onAddFriend={handleAddFriend}
+        onOpenRecurring={() => setIsRecurringOpen(true)}
       />
 
       {/* Main Content Area */}
@@ -236,7 +426,10 @@ export function App() {
             onAddNew={() => handleOpenAddWithPreset('equal_split')}
           />
         ) : (
-          <AnalyticsView state={state} />
+          <AnalyticsView
+            state={state}
+            onUpdateBudget={handleUpdateBudget}
+          />
         )}
       </main>
 
@@ -279,10 +472,22 @@ export function App() {
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         state={state}
-        onUpdateState={(partial) => setState((prev) => ({ ...prev, ...partial }))}
+        onUpdateState={handleUpdateState}
         onResetSampleData={handleResetSampleData}
         onClearAll={handleClearAll}
       />
+
+      <RecurringExpensesModal
+        isOpen={isRecurringOpen}
+        onClose={() => setIsRecurringOpen(false)}
+        state={state}
+        onAddRecurring={handleAddRecurring}
+        onDeleteRecurring={handleDeleteRecurring}
+        onLogRecurring={handleLogRecurring}
+      />
+
+      {/* PWA In-App Install Prompt Banner */}
+      <InstallPrompt />
     </div>
   );
 }
