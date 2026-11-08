@@ -15,6 +15,7 @@ import { ShareModal } from './components/ShareModal';
 import { SettingsModal } from './components/SettingsModal';
 import { RecurringExpensesModal } from './components/RecurringExpensesModal';
 import { InstallPrompt } from './components/InstallPrompt';
+import { ShortcutsModal } from './components/ShortcutsModal';
 import { Plus } from 'lucide-react';
 
 export function App() {
@@ -30,6 +31,7 @@ export function App() {
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isRecurringOpen, setIsRecurringOpen] = useState(false);
+  const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
 
   // Sync state to local storage on change
   useEffect(() => {
@@ -215,6 +217,9 @@ export function App() {
       } else if (e.key === 't' || e.key === 'T') {
         e.preventDefault();
         handleToggleTheme();
+      } else if (e.key === '?' || (e.shiftKey && e.key === '/')) {
+        e.preventDefault();
+        setIsShortcutsOpen((prev) => !prev);
       }
     };
 
@@ -475,6 +480,7 @@ export function App() {
         onUpdateState={handleUpdateState}
         onResetSampleData={handleResetSampleData}
         onClearAll={handleClearAll}
+        onOpenShortcuts={() => setIsShortcutsOpen(true)}
       />
 
       <RecurringExpensesModal
@@ -484,6 +490,11 @@ export function App() {
         onAddRecurring={handleAddRecurring}
         onDeleteRecurring={handleDeleteRecurring}
         onLogRecurring={handleLogRecurring}
+      />
+
+      <ShortcutsModal
+        isOpen={isShortcutsOpen}
+        onClose={() => setIsShortcutsOpen(false)}
       />
 
       {/* PWA In-App Install Prompt Banner */}

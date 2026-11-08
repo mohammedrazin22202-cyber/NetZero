@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AppState, Currency, UserProfile } from '../types';
 import { SUPPORTED_CURRENCIES, DEFAULT_CURRENCY } from '../utils/currencies';
 import { exportToCSV } from '../utils/storage';
-import { X, Download, Upload, RotateCcw, Trash2, Check, Smartphone, User, AlertCircle } from 'lucide-react';
+import { X, Download, Upload, RotateCcw, Trash2, Check, Smartphone, User, AlertCircle, Keyboard } from 'lucide-react';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -11,6 +11,7 @@ interface SettingsModalProps {
   onUpdateState: (newState: Partial<AppState>) => void;
   onResetSampleData: () => void;
   onClearAll: () => void;
+  onOpenShortcuts?: () => void;
 }
 
 const EMOJI_OPTIONS = ['😎', '🤝', '🚀', '⭐', '🍕', '🐱', '🦊', '🔥', '💎', '🎉'];
@@ -22,6 +23,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onUpdateState,
   onResetSampleData,
   onClearAll,
+  onOpenShortcuts,
 }) => {
   const [activeSection, setActiveSection] = useState<'profiles' | 'currency' | 'data'>('profiles');
 
@@ -112,8 +114,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           typeof parsed.user1.name === 'string' &&
           typeof parsed.user2.name === 'string'
         ) {
+          const currentUser = parsed.currentUser || parsed.user1 || state.currentUser;
+          const activeFriend = parsed.user2 || state.user2;
           const sanitizedState: Partial<AppState> = {
+            currentUser,
+            friends: parsed.friends || [activeFriend],
+            selectedFriendId: parsed.selectedFriendId || activeFriend.id,
             transactions: parsed.transactions,
+            friendTransactions: parsed.friendTransactions || {
+              [activeFriend.id]: parsed.transactions,
+            },
+            monthlyBudgets: parsed.monthlyBudgets || {},
+            recurringExpenses: parsed.recurringExpenses || [],
             user1: {
               ...state.user1,
               ...parsed.user1,
@@ -461,6 +473,28 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </button>
                 </div>
               </div>
+
+              {/* Keyboard Shortcuts Button */}
+              {onOpenShortcuts && (
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Keyboard className="w-4 h-4 text-emerald-500" />
+                    <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                      Keyboard Shortcuts
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onOpenShortcuts();
+                    }}
+                    className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20"
+                  >
+                    View Guide
+                  </button>
+                </div>
+              )}
 
               {/* PWA Phone tip */}
               <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 flex items-start gap-3">
