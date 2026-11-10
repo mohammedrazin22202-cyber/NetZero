@@ -142,6 +142,7 @@ export function App() {
   const handleLogRecurring = (rec: RecurringExpense) => {
     const now = new Date();
     const today = getLocalDateString(now);
+    const currentMonthKey = today.slice(0, 7);
     const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
     let payerOwedAmount = rec.amount;
@@ -149,9 +150,9 @@ export function App() {
       payerOwedAmount = Math.round((rec.amount / 2) * 100) / 100;
     }
 
-    const activeFriendId = state.selectedFriendId || state.user2.id;
+    const targetFriendId = rec.friendId || state.selectedFriendId || state.user2.id;
     const beneficiaryId =
-      rec.beneficiaryId || (rec.paidBy === state.currentUser.id ? activeFriendId : state.currentUser.id);
+      rec.beneficiaryId || (rec.paidBy === state.currentUser.id ? targetFriendId : state.currentUser.id);
 
     const tx: Transaction = {
       id: 'tx_rec_' + Date.now(),
@@ -169,17 +170,26 @@ export function App() {
     };
 
     setState((prev) => {
-      const activeFriendId = prev.selectedFriendId || prev.user2.id;
-      const updatedTxs = [tx, ...prev.transactions];
+      const isCurrentFriend = targetFriendId === (prev.selectedFriendId || prev.user2.id);
+      const prevTargetTxs = prev.friendTransactions[targetFriendId] || (isCurrentFriend ? prev.transactions : []);
+      const updatedFriendTxs = [tx, ...prevTargetTxs];
+
       const updatedRecs = (prev.recurringExpenses || []).map((r) =>
-        r.id === rec.id ? { ...r, lastLogged: today } : r
+        r.id === rec.id
+          ? {
+              ...r,
+              lastLogged: today,
+              lastLoggedMonth: currentMonthKey,
+            }
+          : r
       );
+
       return {
         ...prev,
-        transactions: updatedTxs,
+        transactions: isCurrentFriend ? updatedFriendTxs : prev.transactions,
         friendTransactions: {
           ...prev.friendTransactions,
-          [activeFriendId]: updatedTxs,
+          [targetFriendId]: updatedFriendTxs,
         },
         recurringExpenses: updatedRecs,
       };
@@ -379,8 +389,8 @@ export function App() {
       if (partial.user1) {
         next.currentUser = partial.user1;
       }
-      if (partial.user2) {
-        next.friends = prev.friends.map((f) => (f.id === partial.user2!.id ? partial.user2! : f));
+      if (partial.user2 && !partial.friends) {
+        next.friends = (prev.friends || []).map((f) => (f.id === partial.user2!.id ? partial.user2! : f));
       }
       return next;
     });

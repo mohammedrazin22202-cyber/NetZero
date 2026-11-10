@@ -28,10 +28,31 @@ export const HeroBalance: React.FC<HeroBalanceProps> = ({ state, onOpenSettle, o
   // Debt age calculation: days since earliest unsettled outing
   const oldestPendingDays = useMemo(() => {
     if (isSettled || state.transactions.length === 0) return 0;
+
+    // Find date of most recent settlement if any
+    const settlements = state.transactions.filter((t) => t.isSettlement);
+    let mostRecentSettlementTime = 0;
+    if (settlements.length > 0) {
+      const settlementTimes = settlements
+        .map((t) => {
+          const parts = (t.date || '').split('-').map(Number);
+          return parts.length >= 3 ? new Date(parts[0], parts[1] - 1, parts[2]).getTime() : NaN;
+        })
+        .filter((t) => !isNaN(t));
+      if (settlementTimes.length > 0) {
+        mostRecentSettlementTime = Math.max(...settlementTimes);
+      }
+    }
+
+    // Filter unsettled expenses that occurred after the last settlement
     const expenseDates = state.transactions
       .filter((t) => !t.isSettlement)
-      .map((t) => new Date(t.date).getTime())
-      .filter((time) => !isNaN(time));
+      .map((t) => {
+        const parts = (t.date || '').split('-').map(Number);
+        return parts.length >= 3 ? new Date(parts[0], parts[1] - 1, parts[2]).getTime() : NaN;
+      })
+      .filter((time) => !isNaN(time) && (mostRecentSettlementTime === 0 || time >= mostRecentSettlementTime));
+
     if (expenseDates.length === 0) return 0;
     const earliestTime = Math.min(...expenseDates);
     const diffDays = Math.floor((Date.now() - earliestTime) / (1000 * 60 * 60 * 24));

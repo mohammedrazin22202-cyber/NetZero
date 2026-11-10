@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { AppState, Transaction } from '../types';
 import { CATEGORIES } from '../utils/categories';
 import { formatDate, formatMoney } from '../utils/formatters';
@@ -22,6 +22,16 @@ export const TransactionList: React.FC<TransactionListProps> = ({
   const [filterPayer, setFilterPayer] = useState<'all' | 'me' | 'friend'>('all');
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'highest'>('newest');
   const [viewingReceipt, setViewingReceipt] = useState<string | null>(null);
+
+  // Close receipt lightbox on Escape key
+  useEffect(() => {
+    if (!viewingReceipt) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setViewingReceipt(null);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [viewingReceipt]);
 
   const activeUser = state.activeUserId === state.user1.id ? state.user1 : state.user2;
   const friend = state.activeUserId === state.user1.id ? state.user2 : state.user1;

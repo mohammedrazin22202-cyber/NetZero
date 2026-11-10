@@ -185,6 +185,13 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
     setNewItemAmount('');
   };
 
+  const handleItemKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAddItem(e as unknown as React.FormEvent);
+    }
+  };
+
   const handleRemoveItem = (id: string) => {
     triggerHaptic('light');
     setItems(items.filter((it) => it.id !== id));
@@ -196,9 +203,38 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
 
     const reader = new FileReader();
     reader.onload = (event) => {
-      const base64 = event.target?.result as string;
-      setReceiptUrl(base64);
-      triggerHaptic('success');
+      const rawUrl = event.target?.result as string;
+      const img = new Image();
+      img.onload = () => {
+        const maxDim = 900;
+        let width = img.width;
+        let height = img.height;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          setReceiptUrl(canvas.toDataURL('image/jpeg', 0.75));
+        } else {
+          setReceiptUrl(rawUrl);
+        }
+        triggerHaptic('success');
+      };
+      img.onerror = () => {
+        setReceiptUrl(rawUrl);
+        triggerHaptic('success');
+      };
+      img.src = rawUrl;
     };
     reader.readAsDataURL(file);
     e.target.value = '';
@@ -353,6 +389,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
                     placeholder="Item (e.g. Burger)"
                     value={newItemTitle}
                     onChange={(e) => setNewItemTitle(e.target.value)}
+                    onKeyDown={handleItemKeyDown}
                     className="col-span-3 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-white focus:outline-none"
                   />
                   <input
@@ -361,6 +398,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
                     placeholder="Price"
                     value={newItemAmount}
                     onChange={(e) => setNewItemAmount(e.target.value)}
+                    onKeyDown={handleItemKeyDown}
                     className="col-span-2 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none"
                   />
                 </div>

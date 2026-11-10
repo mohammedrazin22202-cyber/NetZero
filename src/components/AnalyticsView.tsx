@@ -37,14 +37,18 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ state, onUpdateBud
 
   const totalSpentTogether = expenseTransactions.reduce((acc, t) => acc + t.amount, 0);
 
-  // Month-over-Month calculation
+  // Month-over-Month calculation (parse YYYY-MM-DD directly to prevent timezone slips)
   const now = new Date();
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth(); // 0-indexed
 
   const currentMonthExpenses = expenseTransactions.filter((t) => {
-    const d = new Date(t.date);
-    return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+    if (!t.date) return false;
+    const parts = t.date.split('-');
+    if (parts.length < 2) return false;
+    const y = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10) - 1;
+    return y === currentYear && m === currentMonth;
   });
   const currentMonthSpend = currentMonthExpenses.reduce((acc, t) => acc + t.amount, 0);
 
@@ -53,8 +57,12 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ state, onUpdateBud
   const prevMonth = prevMonthDate.getMonth();
 
   const prevMonthExpenses = expenseTransactions.filter((t) => {
-    const d = new Date(t.date);
-    return d.getFullYear() === prevYear && d.getMonth() === prevMonth;
+    if (!t.date) return false;
+    const parts = t.date.split('-');
+    if (parts.length < 2) return false;
+    const y = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10) - 1;
+    return y === prevYear && m === prevMonth;
   });
   const prevMonthSpend = prevMonthExpenses.reduce((acc, t) => acc + t.amount, 0);
 

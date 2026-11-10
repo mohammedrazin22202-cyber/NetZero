@@ -242,7 +242,7 @@ export const RecurringExpensesModal: React.FC<RecurringExpensesModalProps> = ({
                       <div>
                         <h4 className="text-xs font-bold text-slate-900 dark:text-white">{item.title}</h4>
                         <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                          Due on day {item.dayOfMonth} of month • Split 50/50
+                          Due on day {item.dayOfMonth} • {item.paidBy === state.currentUser.id ? 'You pay' : `${currentFriend.name.split(' ')[0]} pays`} • {item.splitType === 'equal_split' ? 'Split 50/50' : '100% full'}
                         </p>
                       </div>
                     </div>

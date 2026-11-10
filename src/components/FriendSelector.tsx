@@ -66,7 +66,7 @@ export const FriendSelector: React.FC<FriendSelectorProps> = ({
         className="flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm hover:border-emerald-500/50 transition-all text-xs font-bold text-slate-900 dark:text-white"
       >
         <span className="text-base">{currentFriend.avatar}</span>
-        <span className="max-w-[100px] truncate">{currentFriend.name}</span>
+        <span className="hidden xs:inline max-w-[80px] sm:max-w-[100px] truncate">{currentFriend.name}</span>
         <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
