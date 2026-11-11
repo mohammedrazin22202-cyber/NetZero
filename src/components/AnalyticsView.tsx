@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { AppState, Category } from '../types';
 import { CATEGORIES } from '../utils/categories';
-import { formatMoney } from '../utils/formatters';
+import { formatMoney, formatDate } from '../utils/formatters';
 import {
   PieChart,
   TrendingUp,
@@ -114,6 +114,30 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ state, onUpdateBud
 
   return (
     <div className="space-y-5 animate-in fade-in duration-300">
+      {/* Printable Statement Document Header (Visible only when printing) */}
+      <div className="hidden print:block mb-6 border-b-2 border-slate-900 pb-4">
+        <div className="flex items-center justify-between mb-2">
+          <div>
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight">NetZero Account Statement</h1>
+            <p className="text-xs text-slate-600">Personal & Shared Expense Ledger</p>
+          </div>
+          <div className="text-right">
+            <p className="text-xs font-bold text-slate-800">Date: {new Date().toLocaleDateString(undefined, { dateStyle: 'long' })}</p>
+            <p className="text-xs text-slate-500">Status: {state.transactions.length} Total Records</p>
+          </div>
+        </div>
+        <div className="p-3 bg-slate-100 rounded-lg text-xs grid grid-cols-2 gap-4 mt-2">
+          <div>
+            <span className="text-slate-500 font-semibold block uppercase text-[10px]">Parties</span>
+            <span className="font-bold text-slate-900">{state.currentUser.name} & {friend.name}</span>
+          </div>
+          <div>
+            <span className="text-slate-500 font-semibold block uppercase text-[10px]">Total Shared Expenditure</span>
+            <span className="font-bold text-slate-900">{formatMoney(totalSpentTogether, state.currency)}</span>
+          </div>
+        </div>
+      </div>
+
       {/* Action Header: Month Summary & Print Statement */}
       <div className="flex items-center justify-between">
         <div>
@@ -379,6 +403,37 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ state, onUpdateBud
             })}
           </div>
         )}
+      </div>
+
+      {/* Printable Ledger Itemized Records Table (Visible only when printing) */}
+      <div className="hidden print:block mt-8">
+        <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900 mb-3">Itemized Activity Log</h3>
+        <table className="w-full text-xs text-left border-collapse">
+          <thead>
+            <tr className="border-b-2 border-slate-300 text-slate-700">
+              <th className="py-2 px-1">Date</th>
+              <th className="py-2 px-1">Description</th>
+              <th className="py-2 px-1">Category</th>
+              <th className="py-2 px-1">Paid By</th>
+              <th className="py-2 px-1 text-right">Total</th>
+              <th className="py-2 px-1 text-right">Share Owed</th>
+            </tr>
+          </thead>
+          <tbody>
+            {state.transactions.map((tx) => (
+              <tr key={tx.id} className="border-b border-slate-200">
+                <td className="py-2 px-1 whitespace-nowrap">{formatDate(tx.date)}</td>
+                <td className="py-2 px-1 font-medium">{tx.title}</td>
+                <td className="py-2 px-1 capitalize text-slate-600">{tx.category}</td>
+                <td className="py-2 px-1">{tx.paidBy === state.currentUser.id ? 'You' : friend.name.split(' ')[0]}</td>
+                <td className="py-2 px-1 text-right font-mono">{formatMoney(tx.amount, state.currency)}</td>
+                <td className="py-2 px-1 text-right font-mono font-bold">
+                  {tx.isSettlement ? 'Settled' : formatMoney(tx.payerOwedAmount, state.currency)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );

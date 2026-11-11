@@ -17,3 +17,42 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Dedicated print styling for statements and accounting export */
+@media print {
+  body {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    font-size: 11pt !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Hide navigation controls, headers, floating buttons, inputs and modals */
+  header,
+  .no-print,
+  button,
+  .fixed,
+  input,
+  select,
+  nav {
+    display: none !important;
+  }
+
+  main {
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Force light backgrounds & crisp borders */
+  div, section, article {
+    box-shadow: none !important;
+    text-shadow: none !important;
+    color: #0f172a !important;
+  }
+
+  .print-page-break {
+    page-break-before: always;
+  }
+}

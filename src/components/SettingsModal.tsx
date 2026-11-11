@@ -61,9 +61,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       return;
     }
     setErrorMessage('');
+    const updatedFriends = (state.friends || []).map((f) =>
+      f.id === u2.id ? { ...u2, name: u2.name.trim() } : f
+    );
     onUpdateState({
       user1: { ...u1, name: u1.name.trim() },
       user2: { ...u2, name: u2.name.trim() },
+      friends: updatedFriends,
     });
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 2000);
@@ -299,12 +303,39 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
               </div>
 
-              {/* User 2 */}
+              {/* User 2 / Friend Profile */}
               <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 space-y-3">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5">
-                  <User className="w-3.5 h-3.5" />
-                  Best Friend Profile
-                </h4>
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5">
+                    <User className="w-3.5 h-3.5" />
+                    Friend Profile ({u2.name})
+                  </h4>
+                  {state.friends && state.friends.length > 1 && (
+                    <span className="text-[10px] text-slate-400">
+                      {state.friends.length} Friends
+                    </span>
+                  )}
+                </div>
+
+                {state.friends && state.friends.length > 1 && (
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                    {state.friends.map((f) => (
+                      <button
+                        key={f.id}
+                        type="button"
+                        onClick={() => setU2(f)}
+                        className={`px-2.5 py-1 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                          u2.id === f.id
+                            ? 'bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30'
+                            : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                        }`}
+                      >
+                        <span className="text-sm">{f.avatar}</span>
+                        <span className="truncate max-w-[80px]">{f.name.split(' ')[0]}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <div className="grid grid-cols-3 gap-2">
                   <div className="col-span-2">
                     <label className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold uppercase">
