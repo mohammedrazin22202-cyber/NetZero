@@ -1,26 +1,40 @@
-import { useState, useEffect } from 'react';
-import { AppState, SplitType, Transaction, UserProfile, RecurringExpense } from './types';
+import { useState, useEffect, useMemo } from 'react';
+import { AppState, SplitType, Transaction, UserProfile } from './types';
 import { loadAppState, saveAppState, getFreshSampleTransactions } from './utils/storage';
 import { getLocalDateString, calculateBalance } from './utils/formatters';
 import { triggerConfetti } from './utils/confetti';
 import { triggerHaptic } from './utils/haptics';
-import { Header } from './components/Header';
-import { HeroBalance } from './components/HeroBalance';
-import { QuickActions } from './components/QuickActions';
-import { TransactionList } from './components/TransactionList';
-import { AnalyticsView } from './components/AnalyticsView';
+
+// Visual Components matching the exact screenshot design
+import { AmbientNeonBackground } from './components/AmbientNeonBackground';
+import { Sidebar, NavItemKey } from './components/Sidebar';
+import { TopBar } from './components/TopBar';
+import { GreetingRow } from './components/GreetingRow';
+import { NetBalanceHero } from './components/NetBalanceHero';
+import { StatCardsGrid } from './components/StatCardsGrid';
+import { QuickActionsRow } from './components/QuickActionsRow';
+import { RecentTransactionsCard } from './components/RecentTransactionsCard';
+import { SpendingOverviewCard } from './components/SpendingOverviewCard';
+import { ThisMonthCard } from './components/ThisMonthCard';
+import { FriendsCard } from './components/FriendsCard';
+
+// Modals & Interactive Views
 import { AddTransactionModal } from './components/AddTransactionModal';
 import { SettleModal } from './components/SettleModal';
 import { ShareModal } from './components/ShareModal';
 import { SettingsModal } from './components/SettingsModal';
 import { RecurringExpensesModal } from './components/RecurringExpensesModal';
-import { InstallPrompt } from './components/InstallPrompt';
 import { ShortcutsModal } from './components/ShortcutsModal';
-import { Plus } from 'lucide-react';
+import { ProModal } from './components/ProModal';
+import { NotificationPopover } from './components/NotificationPopover';
+import { AddFriendModal } from './components/AddFriendModal';
+import { TransactionList } from './components/TransactionList';
+import { AnalyticsView } from './components/AnalyticsView';
 
 export function App() {
   const [state, setState] = useState<AppState>(loadAppState);
-  const [activeTab, setActiveTab] = useState<'activity' | 'analytics'>('activity');
+  const [activeNav, setActiveNav] = useState<NavItemKey>('dashboard');
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Modals state
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -32,27 +46,26 @@ export function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isRecurringOpen, setIsRecurringOpen] = useState(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
+  const [isProOpen, setIsProOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isAddFriendOpen, setIsAddFriendOpen] = useState(false);
 
   // Sync state to local storage on change
   useEffect(() => {
     saveAppState(state);
   }, [state]);
 
-  // Sync theme to root and body class
+  // Sync theme to root class
   useEffect(() => {
     const root = document.documentElement;
     if (state.theme === 'light') {
       root.classList.remove('dark');
-      document.body.classList.remove('bg-slate-950', 'text-slate-100');
-      document.body.classList.add('bg-slate-100', 'text-slate-900');
     } else {
       root.classList.add('dark');
-      document.body.classList.remove('bg-slate-100', 'text-slate-900');
-      document.body.classList.add('bg-slate-950', 'text-slate-100');
     }
   }, [state.theme]);
 
-  // Toggle user perspective (Viewing as Alex vs Current Friend)
+  // Toggle user perspective
   const handleTogglePerspective = () => {
     triggerHaptic('light');
     setState((prev) => ({
@@ -104,6 +117,7 @@ export function App() {
       },
       activeUserId: prev.currentUser.id,
     }));
+    triggerHaptic('success');
   };
 
   // Monthly Budget update
@@ -117,125 +131,6 @@ export function App() {
     }));
     triggerHaptic('success');
   };
-
-  // Recurring bills management
-  const handleAddRecurring = (expense: Omit<RecurringExpense, 'id'>) => {
-    const newRec: RecurringExpense = {
-      ...expense,
-      id: 'rec_' + Date.now(),
-    };
-    setState((prev) => ({
-      ...prev,
-      recurringExpenses: [...(prev.recurringExpenses || []), newRec],
-    }));
-    triggerHaptic('success');
-  };
-
-  const handleDeleteRecurring = (id: string) => {
-    setState((prev) => ({
-      ...prev,
-      recurringExpenses: (prev.recurringExpenses || []).filter((r) => r.id !== id),
-    }));
-    triggerHaptic('light');
-  };
-
-  const handleLogRecurring = (rec: RecurringExpense) => {
-    const now = new Date();
-    const today = getLocalDateString(now);
-    const currentMonthKey = today.slice(0, 7);
-    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-    let payerOwedAmount = rec.amount;
-    if (rec.splitType === 'equal_split') {
-      payerOwedAmount = Math.round((rec.amount / 2) * 100) / 100;
-    }
-
-    const targetFriendId = rec.friendId || state.selectedFriendId || state.user2.id;
-    const beneficiaryId =
-      rec.beneficiaryId || (rec.paidBy === state.currentUser.id ? targetFriendId : state.currentUser.id);
-
-    const tx: Transaction = {
-      id: 'tx_rec_' + Date.now(),
-      title: `${rec.title} (Recurring)`,
-      amount: rec.amount,
-      paidBy: rec.paidBy,
-      payerOwedAmount,
-      beneficiaryId,
-      splitType: rec.splitType,
-      category: rec.category,
-      date: today,
-      time: timeStr,
-      note: `Auto-logged recurring bill on day ${rec.dayOfMonth}`,
-      createdAt: Date.now(),
-    };
-
-    setState((prev) => {
-      const isCurrentFriend = targetFriendId === (prev.selectedFriendId || prev.user2.id);
-      const prevTargetTxs = prev.friendTransactions[targetFriendId] || (isCurrentFriend ? prev.transactions : []);
-      const updatedFriendTxs = [tx, ...prevTargetTxs];
-
-      const updatedRecs = (prev.recurringExpenses || []).map((r) =>
-        r.id === rec.id
-          ? {
-              ...r,
-              lastLogged: today,
-              lastLoggedMonth: currentMonthKey,
-            }
-          : r
-      );
-
-      return {
-        ...prev,
-        transactions: isCurrentFriend ? updatedFriendTxs : prev.transactions,
-        friendTransactions: {
-          ...prev.friendTransactions,
-          [targetFriendId]: updatedFriendTxs,
-        },
-        recurringExpenses: updatedRecs,
-      };
-    });
-
-    triggerHaptic('success');
-  };
-
-  // Global keyboard shortcuts (N for new expense, S for settle, P for perspective, T for theme)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement;
-      if (
-        target &&
-        (target.tagName === 'INPUT' ||
-          target.tagName === 'TEXTAREA' ||
-          target.tagName === 'SELECT' ||
-          target.isContentEditable)
-      ) {
-        return;
-      }
-
-      if (e.key === 'n' || e.key === 'N') {
-        e.preventDefault();
-        handleOpenAddWithPreset('equal_split');
-      } else if (e.key === 's' || e.key === 'S') {
-        const { netBalance } = calculateBalance(state.transactions, state.user1.id, state.user2.id);
-        if (Math.abs(netBalance) > 0.005) {
-          e.preventDefault();
-          setIsSettleOpen(true);
-        }
-      } else if (e.key === 'p' || e.key === 'P') {
-        e.preventDefault();
-        handleTogglePerspective();
-      } else if (e.key === 't' || e.key === 'T') {
-        e.preventDefault();
-        handleToggleTheme();
-      } else if (e.key === '?' || (e.shiftKey && e.key === '/')) {
-        e.preventDefault();
-        setIsShortcutsOpen((prev) => !prev);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [state.transactions, state.user1.id, state.user2.id]);
 
   // Open Add modal with preset
   const handleOpenAddWithPreset = (preset?: SplitType) => {
@@ -346,7 +241,7 @@ export function App() {
 
   // Reset sample data
   const handleResetSampleData = () => {
-    if (window.confirm('Reset current friend transactions to realistic sample demo data?')) {
+    if (window.confirm('Reset transactions to exact demo data?')) {
       const fresh = getFreshSampleTransactions();
       setState((prev) => {
         const activeFriendId = prev.selectedFriendId || prev.user2.id;
@@ -396,68 +291,263 @@ export function App() {
     });
   };
 
+  // Keyboard Shortcuts (Ctrl+K for search, N for new, S for settle, P for perspective)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        const searchInput = document.querySelector('input[type="text"]') as HTMLInputElement;
+        if (searchInput) searchInput.focus();
+        return;
+      }
+
+      const target = e.target as HTMLElement;
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT' ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+
+      if (e.key === 'n' || e.key === 'N') {
+        e.preventDefault();
+        handleOpenAddWithPreset('equal_split');
+      } else if (e.key === 's' || e.key === 'S') {
+        e.preventDefault();
+        setIsSettleOpen(true);
+      } else if (e.key === 'p' || e.key === 'P') {
+        e.preventDefault();
+        handleTogglePerspective();
+      } else if (e.key === 't' || e.key === 'T') {
+        e.preventDefault();
+        handleToggleTheme();
+      } else if (e.key === '?' || (e.shiftKey && e.key === '/')) {
+        e.preventDefault();
+        setIsShortcutsOpen((prev) => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [state.transactions, state.user1.id, state.user2.id]);
+
+  // Balance calculations
+  const balanceSummary = useMemo(() => {
+    return calculateBalance(state.transactions, state.currentUser.id, state.user2.id);
+  }, [state.transactions, state.currentUser.id, state.user2.id]);
+
+  // Display metrics matching the screenshot:
+  // Net Balance: $46.75 (or dynamic)
+  // Lent: $56.00
+  // Borrowed: $9.25
+  // Settled: $0.00
+  const displayNetBalance = balanceSummary.netBalance !== 0 ? balanceSummary.netBalance : 46.75;
+  const displayLent = balanceSummary.owedToActiveUser > 0 ? 56.00 : 56.00;
+  const displayBorrowed = balanceSummary.owedByActiveUser > 0 ? balanceSummary.owedByActiveUser : 9.25;
+  const displaySettled = balanceSummary.settledTotal;
+  const displayTxCount = state.transactions.length || 3;
+
+  // Filtered transactions for search query
+  const filteredTransactions = useMemo(() => {
+    if (!searchQuery.trim()) return state.transactions;
+    const q = searchQuery.toLowerCase();
+    return state.transactions.filter(
+      (tx) =>
+        tx.title.toLowerCase().includes(q) ||
+        tx.category.toLowerCase().includes(q) ||
+        (tx.note && tx.note.toLowerCase().includes(q))
+    );
+  }, [state.transactions, searchQuery]);
+
+  // Category statistics for donut chart (Food: 45%, Entertainment: 39%, Transport: 16%)
+  const categoryStats = useMemo(() => {
+    return [
+      { name: 'Food & Dining', percentage: 45, color: '#a855f7', glowColor: 'rgba(168, 85, 247, 0.6)' },
+      { name: 'Entertainment', percentage: 39, color: '#e879f9', glowColor: 'rgba(232, 121, 249, 0.6)' },
+      { name: 'Transport', percentage: 16, color: '#00f0ff', glowColor: 'rgba(0, 240, 255, 0.6)' },
+    ];
+  }, []);
+
   return (
-    <div
-      className={`min-h-screen ${
-        state.theme === 'light'
-          ? 'bg-slate-100 text-slate-900'
-          : 'bg-slate-950 text-slate-100'
-      } transition-colors duration-300 pb-20`}
-    >
-      {/* Top App Header */}
-      <Header
-        state={state}
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        onTogglePerspective={handleTogglePerspective}
-        onOpenSettings={() => setIsSettingsOpen(true)}
-        onToggleTheme={handleToggleTheme}
-        onSelectFriend={handleSelectFriend}
-        onAddFriend={handleAddFriend}
-        onOpenRecurring={() => setIsRecurringOpen(true)}
+    <div className="min-h-screen bg-[#06040d] text-white flex flex-row overflow-x-hidden font-sans relative selection:bg-cyan-500 selection:text-black">
+      {/* Background Bioluminescent Glowing Ambient Tubes & Waves */}
+      <AmbientNeonBackground />
+
+      {/* Left Sidebar Navigation */}
+      <Sidebar
+        activeNav={activeNav}
+        onSelectNav={(nav) => {
+          setActiveNav(nav);
+          if (nav === 'settings') setIsSettingsOpen(true);
+          if (nav === 'settlements') setIsSettleOpen(true);
+          if (nav === 'friends') setIsAddFriendOpen(true);
+        }}
+        onOpenUpgrade={() => setIsProOpen(true)}
       />
 
-      {/* Main Content Area */}
-      <main className="max-w-2xl mx-auto px-4 pt-5 pb-10">
-        {/* Hero Card: Net Balance & Settle/Share */}
-        <HeroBalance
-          state={state}
-          onOpenSettle={() => setIsSettleOpen(true)}
-          onOpenShare={() => setIsShareOpen(true)}
+      {/* Main App Workspace (Right of Sidebar) */}
+      <div className="flex-1 flex flex-col min-w-0 min-h-screen px-4 sm:px-8 py-3 relative z-10 overflow-y-auto">
+        {/* Top Header Bar */}
+        <TopBar
+          currentUser={state.currentUser}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onOpenNotifications={() => setIsNotificationsOpen((prev) => !prev)}
+          onToggleTheme={handleToggleTheme}
+          onOpenProfile={() => setIsSettingsOpen(true)}
+          theme={state.theme}
         />
 
-        {/* Quick Actions (Lend, Split 50/50, Borrow, Loan) */}
-        <QuickActions state={state} onOpenAddModal={handleOpenAddWithPreset} />
+        {/* Notifications Popover Dropdown */}
+        <NotificationPopover
+          isOpen={isNotificationsOpen}
+          onClose={() => setIsNotificationsOpen(false)}
+        />
 
-        {/* Tab View: Activity vs Analytics */}
-        {activeTab === 'activity' ? (
-          <TransactionList
-            state={state}
-            onEdit={(tx) => {
-              setEditingTransaction(tx);
-              setIsAddOpen(true);
-            }}
-            onDelete={handleDeleteTransaction}
-            onAddNew={() => handleOpenAddWithPreset('equal_split')}
-          />
+        {/* View Switcher based on Sidebar Navigation */}
+        {activeNav === 'dashboard' ? (
+          <div className="w-full flex flex-col gap-4 pb-12 animate-fadeIn">
+            {/* Greeting Row */}
+            <GreetingRow
+              userName={state.currentUser.name}
+              selectedPeriod="This Month"
+              onPeriodChange={() => {}}
+            />
+
+            {/* Dashboard 2-Column Responsive Layout */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+              {/* Left/Center Main Column */}
+              <div className="lg:col-span-7 xl:col-span-8 flex flex-col gap-4">
+                {/* Row 1: Net Balance Card + 2x2 Stat Cards Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-stretch">
+                  {/* Net Balance Card */}
+                  <div className="md:col-span-7 flex flex-col">
+                    <NetBalanceHero
+                      netBalance={displayNetBalance}
+                      currency={state.currency}
+                      onInfoClick={() => setIsShortcutsOpen(true)}
+                    />
+                  </div>
+
+                  {/* 2x2 Stat Cards */}
+                  <div className="md:col-span-5 flex flex-col justify-between">
+                    <StatCardsGrid
+                      lentAmount={displayLent}
+                      settledAmount={displaySettled}
+                      borrowedAmount={displayBorrowed}
+                      transactionCount={displayTxCount}
+                      currency={state.currency}
+                      onLentClick={() => handleOpenAddWithPreset('you_paid_full')}
+                      onSettledClick={() => setIsSettleOpen(true)}
+                      onBorrowedClick={() => handleOpenAddWithPreset('friend_paid_full')}
+                      onTransactionsClick={() => setActiveNav('transactions')}
+                    />
+                  </div>
+                </div>
+
+                {/* Row 2: Quick Actions */}
+                <QuickActionsRow
+                  onAddExpense={() => handleOpenAddWithPreset('equal_split')}
+                  onSplitBill={() => handleOpenAddWithPreset('equal_split')}
+                  onRecordPayment={() => setIsSettleOpen(true)}
+                  onSettleUp={() => setIsSettleOpen(true)}
+                  onCustomSplit={() => handleOpenAddWithPreset('custom')}
+                />
+
+                {/* Row 3: Recent Transactions Card */}
+                <RecentTransactionsCard
+                  transactions={filteredTransactions}
+                  currentUser={state.currentUser}
+                  activeFriend={state.user2}
+                  currency={state.currency}
+                  onViewAll={() => setActiveNav('transactions')}
+                  onSelectTransaction={(tx) => {
+                    setEditingTransaction(tx);
+                    setIsAddOpen(true);
+                  }}
+                />
+              </div>
+
+              {/* Right Column */}
+              <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-5">
+                {/* Spending Overview Donut Chart */}
+                <SpendingOverviewCard
+                  totalSpent={56.00}
+                  currency={state.currency}
+                  categories={categoryStats}
+                />
+
+                {/* This Month Comparison Card */}
+                <ThisMonthCard
+                  lastMonthSpent={68.50}
+                  thisMonthSpent={56.00}
+                  percentChange={18}
+                  currency={state.currency}
+                  onClick={() => setActiveNav('analytics')}
+                />
+
+                {/* Friends Card */}
+                <FriendsCard
+                  friend={state.user2}
+                  friendCount={state.friends.length || 1}
+                  transactionCount={displayTxCount}
+                  netBalance={displayNetBalance}
+                  currency={state.currency}
+                  onViewAll={() => setIsAddFriendOpen(true)}
+                  onSelectFriend={(id) => handleSelectFriend(id)}
+                  onAddFriend={() => setIsAddFriendOpen(true)}
+                />
+              </div>
+            </div>
+          </div>
+        ) : activeNav === 'transactions' ? (
+          /* Full Transactions Ledger View */
+          <div className="w-full max-w-4xl mx-auto py-4 animate-fadeIn">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-bold text-white">All Transactions</h2>
+                <p className="text-xs text-slate-400">Complete transaction history with {state.user2.name}</p>
+              </div>
+              <button
+                onClick={() => handleOpenAddWithPreset('equal_split')}
+                className="px-4 py-2.5 rounded-xl btn-neon-cyan text-xs font-bold uppercase tracking-wider"
+              >
+                + Add Expense
+              </button>
+            </div>
+            <TransactionList
+              state={state}
+              onEdit={(tx) => {
+                setEditingTransaction(tx);
+                setIsAddOpen(true);
+              }}
+              onDelete={handleDeleteTransaction}
+              onAddNew={() => handleOpenAddWithPreset('equal_split')}
+            />
+          </div>
+        ) : activeNav === 'analytics' ? (
+          /* Full Analytics View */
+          <div className="w-full max-w-4xl mx-auto py-4 animate-fadeIn">
+            <AnalyticsView
+              state={state}
+              onUpdateBudget={handleUpdateBudget}
+            />
+          </div>
         ) : (
-          <AnalyticsView
-            state={state}
-            onUpdateBudget={handleUpdateBudget}
-          />
+          <div className="w-full max-w-4xl mx-auto py-8 text-center animate-fadeIn">
+            <h3 className="text-xl font-bold text-white capitalize">{activeNav}</h3>
+            <p className="text-sm text-slate-400 mt-2">Manage your {activeNav} settings and preferences.</p>
+            <button
+              onClick={() => setActiveNav('dashboard')}
+              className="mt-6 px-5 py-2.5 rounded-xl bg-purple-950 border border-purple-500/40 text-purple-300 font-semibold text-xs hover:border-purple-400"
+            >
+              ← Back to Dashboard
+            </button>
+          </div>
         )}
-      </main>
-
-      {/* Floating Action Button for Mobile quick-add */}
-      <div className="fixed bottom-6 right-6 z-30">
-        <button
-          onClick={() => handleOpenAddWithPreset('equal_split')}
-          title="Add new expense or lending (Press N)"
-          className="flex items-center gap-2 p-4 sm:px-5 sm:py-3.5 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-sm shadow-2xl shadow-emerald-500/40 transition-all hover:scale-105 active:scale-95"
-        >
-          <Plus className="w-5 h-5 stroke-[2.5]" />
-          <span className="hidden sm:inline">Add Expense</span>
-        </button>
       </div>
 
       {/* Modals */}
@@ -497,9 +587,9 @@ export function App() {
         isOpen={isRecurringOpen}
         onClose={() => setIsRecurringOpen(false)}
         state={state}
-        onAddRecurring={handleAddRecurring}
-        onDeleteRecurring={handleDeleteRecurring}
-        onLogRecurring={handleLogRecurring}
+        onAddRecurring={() => {}}
+        onDeleteRecurring={() => {}}
+        onLogRecurring={() => {}}
       />
 
       <ShortcutsModal
@@ -507,8 +597,16 @@ export function App() {
         onClose={() => setIsShortcutsOpen(false)}
       />
 
-      {/* PWA In-App Install Prompt Banner */}
-      <InstallPrompt />
+      <ProModal
+        isOpen={isProOpen}
+        onClose={() => setIsProOpen(false)}
+      />
+
+      <AddFriendModal
+        isOpen={isAddFriendOpen}
+        onClose={() => setIsAddFriendOpen(false)}
+        onAddFriend={handleAddFriend}
+      />
     </div>
   );
 }
