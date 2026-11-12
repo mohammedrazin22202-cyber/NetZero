@@ -1,76 +1,71 @@
 import { AppState, Transaction, UserProfile } from '../types';
 import { DEFAULT_CURRENCY } from './currencies';
-import { getLocalDateString } from './formatters';
 
 const STORAGE_KEY = 'account_balancer_state_v1';
 
 export const INITIAL_USER_1: UserProfile = {
   id: 'user_1',
-  name: 'Me (Alex)',
-  avatar: '😎',
-  color: 'emerald',
-  upiId: 'alex@upi',
-  paypalUser: 'alexfriend',
-  venmoUser: 'alex-friend',
+  name: 'MegaTron',
+  avatar: 'M',
+  color: 'purple',
+  upiId: 'megatron@upi',
+  paypalUser: 'megatron',
+  venmoUser: 'megatron-pay',
 };
 
 export const INITIAL_USER_2: UserProfile = {
   id: 'user_2',
   name: 'Sam (Bestie)',
-  avatar: '🤝',
-  color: 'indigo',
+  avatar: 'S',
+  color: 'purple',
   upiId: 'sam@upi',
   paypalUser: 'sambestie',
   venmoUser: 'sam-bestie',
 };
 
 export function getFreshSampleTransactions(): Transaction[] {
-  const now = new Date();
-  const d2 = new Date(now.getTime() - 86400000 * 2);
-  const d1 = new Date(now.getTime() - 86400000 * 1);
-
   return [
     {
-      id: 'tx_3',
-      title: 'Movie tickets (Cinema)',
-      amount: 32.0,
+      id: 'tx_1',
+      title: 'Dinner',
+      amount: 25.0,
       paidBy: 'user_1',
-      payerOwedAmount: 32.0,
+      payerOwedAmount: 25.0,
       beneficiaryId: 'user_2',
       splitType: 'you_paid_full',
-      category: 'entertainment',
-      date: getLocalDateString(now),
-      time: '18:15',
-      note: 'I covered Sam tickets upfront',
-      createdAt: now.getTime(),
+      category: 'food',
+      date: '2026-11-12',
+      time: '20:15',
+      note: 'Dinner with Sam',
+      createdAt: 1794460000000,
     },
     {
       id: 'tx_2',
-      title: 'Uber ride home',
-      amount: 18.5,
+      title: 'Movie Tickets',
+      amount: 21.75,
+      paidBy: 'user_1',
+      payerOwedAmount: 21.75,
+      beneficiaryId: 'user_2',
+      splitType: 'you_paid_full',
+      category: 'entertainment',
+      date: '2026-11-10',
+      time: '19:30',
+      note: 'Movie tickets with Sam',
+      createdAt: 1794300000000,
+    },
+    {
+      id: 'tx_3',
+      title: 'Cab',
+      amount: 9.25,
       paidBy: 'user_2',
       payerOwedAmount: 9.25,
       beneficiaryId: 'user_1',
-      splitType: 'equal_split',
+      splitType: 'friend_paid_full',
       category: 'transport',
-      date: getLocalDateString(d1),
-      time: '23:45',
-      note: 'Late night ride',
-      createdAt: d1.getTime(),
-    },
-    {
-      id: 'tx_1',
-      title: 'Pizza Night & Drinks',
-      amount: 48.0,
-      paidBy: 'user_1',
-      payerOwedAmount: 24.0,
-      beneficiaryId: 'user_2',
-      splitType: 'equal_split',
-      category: 'food',
-      date: getLocalDateString(d2),
-      time: '20:30',
-      note: 'Split 50/50 for pizza and soda',
-      createdAt: d2.getTime(),
+      date: '2026-11-08',
+      time: '22:45',
+      note: 'Cab ride for you',
+      createdAt: 1794100000000,
     },
   ];
 }
