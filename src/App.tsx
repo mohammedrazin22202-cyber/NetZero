@@ -239,7 +239,7 @@ export function App() {
     triggerHaptic('success');
   };
 
-  // Reset sample data
+  // Reset sample data to exact initial state
   const handleResetSampleData = () => {
     if (window.confirm('Reset transactions to exact demo data?')) {
       const fresh = getFreshSampleTransactions();
@@ -340,7 +340,7 @@ export function App() {
   }, [state.transactions, state.currentUser.id, state.user2.id]);
 
   // Display metrics matching the screenshot:
-  // Net Balance: $46.75 (or dynamic)
+  // Net Balance: $46.75
   // Lent: $56.00
   // Borrowed: $9.25
   // Settled: $0.00
@@ -365,9 +365,9 @@ export function App() {
   // Category statistics for donut chart (Food: 45%, Entertainment: 39%, Transport: 16%)
   const categoryStats = useMemo(() => {
     return [
-      { name: 'Food & Dining', percentage: 45, color: '#a855f7', glowColor: 'rgba(168, 85, 247, 0.6)' },
-      { name: 'Entertainment', percentage: 39, color: '#e879f9', glowColor: 'rgba(232, 121, 249, 0.6)' },
-      { name: 'Transport', percentage: 16, color: '#00f0ff', glowColor: 'rgba(0, 240, 255, 0.6)' },
+      { name: 'Food & Dining', percentage: 45, color: '#a855f7', glowColor: 'rgba(168, 85, 247, 0.7)' },
+      { name: 'Entertainment', percentage: 39, color: '#e879f9', glowColor: 'rgba(232, 121, 249, 0.7)' },
+      { name: 'Transport', percentage: 16, color: '#00f0ff', glowColor: 'rgba(0, 240, 255, 0.7)' },
     ];
   }, []);
 
@@ -389,7 +389,7 @@ export function App() {
       />
 
       {/* Main App Workspace (Right of Sidebar) */}
-      <div className="flex-1 flex flex-col min-w-0 min-h-screen px-4 sm:px-8 py-3 relative z-10 overflow-y-auto">
+      <div className="flex-1 flex flex-col min-w-0 min-h-screen px-4 sm:px-7 py-2.5 relative z-10 overflow-y-auto">
         {/* Top Header Bar */}
         <TopBar
           currentUser={state.currentUser}
@@ -409,7 +409,7 @@ export function App() {
 
         {/* View Switcher based on Sidebar Navigation */}
         {activeNav === 'dashboard' ? (
-          <div className="w-full flex flex-col gap-4 pb-12 animate-fadeIn">
+          <div className="w-full flex flex-col gap-3 pb-10 animate-fadeIn">
             {/* Greeting Row */}
             <GreetingRow
               userName={state.currentUser.name}
@@ -417,12 +417,12 @@ export function App() {
               onPeriodChange={() => {}}
             />
 
-            {/* Dashboard 2-Column Responsive Layout */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+            {/* Dashboard 2-Column Responsive Layout matching screenshot */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
               {/* Left/Center Main Column */}
               <div className="lg:col-span-7 xl:col-span-8 flex flex-col gap-4">
                 {/* Row 1: Net Balance Card + 2x2 Stat Cards Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-stretch">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5 items-stretch">
                   {/* Net Balance Card */}
                   <div className="md:col-span-7 flex flex-col">
                     <NetBalanceHero
@@ -472,7 +472,7 @@ export function App() {
               </div>
 
               {/* Right Column */}
-              <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-5">
+              <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-4">
                 {/* Spending Overview Donut Chart */}
                 <SpendingOverviewCard
                   totalSpent={56.00}

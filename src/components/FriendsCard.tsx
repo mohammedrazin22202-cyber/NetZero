@@ -28,9 +28,9 @@ export const FriendsCard: React.FC<FriendsCardProps> = ({
   const balanceText = `${balancePrefix}${currency.symbol}${Math.abs(netBalance).toFixed(2)}`;
 
   return (
-    <div className="neon-glass-card rounded-3xl p-5 sm:p-6 select-none flex flex-col justify-between">
+    <div className="neon-glass-card rounded-3xl p-5 select-none flex flex-col justify-between">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-3">
         <h3 className="text-base font-semibold text-white">
           Friends ({friendCount})
         </h3>
@@ -46,11 +46,11 @@ export const FriendsCard: React.FC<FriendsCardProps> = ({
       {/* Friend Item */}
       <div
         onClick={() => onSelectFriend?.(friend.id)}
-        className="rounded-2xl p-3 sm:p-3.5 bg-[#170f2a]/90 border border-purple-500/25 flex items-center justify-between gap-3 cursor-pointer hover:border-purple-400/60 hover:bg-[#20153a] transition-all group"
+        className="rounded-2xl p-3 bg-[#19112d]/90 border border-purple-500/30 flex items-center justify-between gap-3 cursor-pointer hover:border-purple-400/60 hover:bg-[#22163d] transition-all group"
       >
         {/* Left: Avatar & Name */}
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-700 via-purple-600 to-fuchsia-600 flex items-center justify-center text-white font-bold text-sm shadow-[0_0_12px_rgba(168,85,247,0.4)] shrink-0">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-700 via-purple-600 to-fuchsia-600 flex items-center justify-center text-white font-bold text-sm shadow-[0_0_12px_rgba(168,85,247,0.45)] shrink-0">
             {friend.name ? friend.name.charAt(0).toUpperCase() : 'S'}
           </div>
 
@@ -67,8 +67,8 @@ export const FriendsCard: React.FC<FriendsCardProps> = ({
         {/* Right: Amount & Chevron */}
         <div className="flex items-center gap-2 shrink-0">
           <div className="flex flex-col items-end">
-            <span className={`text-sm sm:text-base font-bold tracking-tight ${
-              isOwed ? 'text-cyan-400' : 'text-fuchsia-400'
+            <span className={`text-base font-bold tracking-tight ${
+              isOwed ? 'text-cyan-400' : 'text-[#e879f9]'
             }`}>
               {balanceText}
             </span>
@@ -84,7 +84,7 @@ export const FriendsCard: React.FC<FriendsCardProps> = ({
       <div className="mt-4">
         <button
           onClick={onAddFriend}
-          className="w-full py-3 rounded-2xl bg-[#170f2a]/80 border border-purple-500/30 hover:border-purple-400/60 text-white font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-[0_0_14px_rgba(168,85,247,0.15)] hover:shadow-[0_0_20px_rgba(168,85,247,0.3)] transition-all active:scale-[0.99]"
+          className="w-full py-3 rounded-2xl bg-[#18112c]/85 border border-purple-500/35 hover:border-purple-400/70 text-white font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-[0_0_14px_rgba(168,85,247,0.18)] hover:shadow-[0_0_22px_rgba(168,85,247,0.35)] transition-all active:scale-[0.99]"
         >
           <Plus className="w-4 h-4 stroke-[2.5] text-purple-400" />
           <span>Add Friend</span>

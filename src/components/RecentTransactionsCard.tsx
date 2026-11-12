@@ -19,46 +19,45 @@ export const RecentTransactionsCard: React.FC<RecentTransactionsCardProps> = ({
   onViewAll,
   onSelectTransaction,
 }) => {
-  // Sort newest first and pick top 3
   const recent = transactions.slice(0, 3);
 
-  const getCategoryIcon = (category: string, title: string) => {
+  const getCategoryDetails = (category: string, title: string) => {
     const t = (title || '').toLowerCase();
     const c = (category || '').toLowerCase();
 
     if (t.includes('dinner') || t.includes('food') || c === 'food') {
       return {
         icon: <Utensils className="w-4 h-4 stroke-[2.2]" />,
-        bg: 'bg-teal-950/80 border-teal-500/40 text-teal-400',
+        bg: 'bg-[#0a232e]/90 border border-teal-500/50 text-teal-400 shadow-[0_0_10px_rgba(20,184,166,0.3)]',
       };
     }
     if (t.includes('movie') || t.includes('ticket') || c === 'entertainment') {
       return {
         icon: <Clapperboard className="w-4 h-4 stroke-[2.2]" />,
-        bg: 'bg-purple-950/80 border-purple-500/40 text-purple-400',
+        bg: 'bg-[#251042]/90 border border-purple-500/50 text-purple-400 shadow-[0_0_10px_rgba(168,85,247,0.3)]',
       };
     }
     if (t.includes('cab') || t.includes('uber') || t.includes('ride') || c === 'transport') {
       return {
         icon: <Car className="w-4 h-4 stroke-[2.2]" />,
-        bg: 'bg-teal-950/80 border-teal-500/40 text-teal-400',
+        bg: 'bg-[#0a232e]/90 border border-teal-500/50 text-teal-400 shadow-[0_0_10px_rgba(20,184,166,0.3)]',
       };
     }
     if (c === 'drinks' || t.includes('coffee')) {
       return {
         icon: <Coffee className="w-4 h-4 stroke-[2.2]" />,
-        bg: 'bg-amber-950/80 border-amber-500/40 text-amber-400',
+        bg: 'bg-[#2b1704]/90 border border-amber-500/50 text-amber-400',
       };
     }
     if (c === 'shopping') {
       return {
         icon: <ShoppingBag className="w-4 h-4 stroke-[2.2]" />,
-        bg: 'bg-pink-950/80 border-pink-500/40 text-pink-400',
+        bg: 'bg-[#2e0921]/90 border border-pink-500/50 text-pink-400',
       };
     }
     return {
       icon: <Receipt className="w-4 h-4 stroke-[2.2]" />,
-      bg: 'bg-purple-950/80 border-purple-500/40 text-purple-400',
+      bg: 'bg-[#251042]/90 border border-purple-500/50 text-purple-400',
     };
   };
 
@@ -79,9 +78,9 @@ export const RecentTransactionsCard: React.FC<RecentTransactionsCardProps> = ({
   };
 
   return (
-    <div className="neon-glass-card rounded-3xl p-5 sm:p-6 select-none flex flex-col justify-between">
+    <div className="neon-glass-card rounded-3xl p-5 select-none flex flex-col justify-between">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-3">
         <h3 className="text-base font-semibold text-white">
           Recent Transactions
         </h3>
@@ -95,27 +94,27 @@ export const RecentTransactionsCard: React.FC<RecentTransactionsCardProps> = ({
       </div>
 
       {/* Transactions List */}
-      <div className="flex flex-col divide-y divide-purple-500/10">
+      <div className="flex flex-col gap-2">
         {recent.length === 0 ? (
           <div className="py-8 text-center text-sm text-slate-400">
-            No transactions yet. Add your first expense above!
+            No transactions yet.
           </div>
         ) : (
           recent.map((tx) => {
             const isUserPayer = tx.paidBy === currentUser.id;
             const friendName = activeFriend.name.split(' ')[0] || 'Sam';
-            const { icon, bg } = getCategoryIcon(tx.category, tx.title);
+            const { icon, bg } = getCategoryDetails(tx.category, tx.title);
             const dateLabel = formatShortDate(tx.date);
 
             return (
               <div
                 key={tx.id}
                 onClick={() => onSelectTransaction?.(tx)}
-                className="py-3.5 flex items-center justify-between gap-3 group cursor-pointer hover:bg-white/[0.02] rounded-xl px-2 -mx-2 transition-colors"
+                className="py-2.5 px-2 flex items-center justify-between gap-3 group cursor-pointer hover:bg-white/[0.03] rounded-2xl transition-colors"
               >
                 {/* Left: Icon & Details */}
                 <div className="flex items-center gap-3.5 min-w-0">
-                  <div className={`w-10 h-10 rounded-full border flex items-center justify-center shrink-0 ${bg}`}>
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${bg}`}>
                     {icon}
                   </div>
 
@@ -124,19 +123,19 @@ export const RecentTransactionsCard: React.FC<RecentTransactionsCardProps> = ({
                       {tx.title}
                     </span>
                     <span className="text-xs text-slate-400 truncate">
-                      {isUserPayer ? `You paid • with ${friendName}` : `${friendName} paid • for you`}
+                      {isUserPayer ? `You paid  •  with ${friendName}` : `${friendName} paid  •  for you`}
                     </span>
                   </div>
                 </div>
 
                 {/* Right: Date & Amount */}
                 <div className="flex items-center gap-6 shrink-0">
-                  <span className="text-xs text-slate-400">
+                  <span className="text-xs text-slate-400 min-w-[45px] text-right">
                     {dateLabel}
                   </span>
 
-                  <span className={`text-sm sm:text-base font-bold min-w-[70px] text-right ${
-                    isUserPayer ? 'text-cyan-400' : 'text-fuchsia-400'
+                  <span className={`text-base font-bold min-w-[70px] text-right ${
+                    isUserPayer ? 'text-cyan-400' : 'text-[#e879f9]'
                   }`}>
                     {currency.symbol}{tx.amount.toFixed(2)}
                   </span>

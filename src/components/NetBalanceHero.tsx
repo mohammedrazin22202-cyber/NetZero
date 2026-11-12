@@ -9,7 +9,7 @@ interface NetBalanceHeroProps {
 }
 
 export const NetBalanceHero: React.FC<NetBalanceHeroProps> = ({
-  netBalance,
+  netBalance = 46.75,
   currency,
   onInfoClick,
 }) => {
@@ -17,34 +17,34 @@ export const NetBalanceHero: React.FC<NetBalanceHeroProps> = ({
   const formattedAmount = `${currency.symbol}${Math.abs(netBalance).toFixed(2)}`;
 
   return (
-    <div className="relative w-full overflow-hidden neon-hero-card p-6 sm:p-7 flex flex-col justify-between min-h-[195px] select-none">
+    <div className="relative w-full overflow-hidden neon-hero-card p-6 sm:p-7 flex flex-col justify-between min-h-[200px] select-none">
       {/* Background Ambient Radial Lighting */}
       <div 
-        className="absolute -right-8 -top-8 w-44 h-44 rounded-full opacity-50 blur-3xl pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(0, 240, 255, 0.4) 0%, rgba(168, 85, 247, 0.2) 60%, transparent 80%)' }}
+        className="absolute -right-8 -top-8 w-48 h-48 rounded-full opacity-60 blur-3xl pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(0, 240, 255, 0.45) 0%, rgba(168, 85, 247, 0.25) 60%, transparent 80%)' }}
       />
       <div 
-        className="absolute -left-6 -bottom-6 w-36 h-36 rounded-full opacity-40 blur-2xl pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(168, 85, 247, 0.45) 0%, transparent 70%)' }}
+        className="absolute -left-6 -bottom-6 w-40 h-40 rounded-full opacity-50 blur-2xl pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(168, 85, 247, 0.5) 0%, transparent 70%)' }}
       />
 
       {/* Bioluminescent Flowing Neon Wave Contour at Bottom */}
       <div className="absolute inset-x-0 bottom-0 h-16 pointer-events-none overflow-hidden">
         <svg 
-          viewBox="0 0 400 60" 
+          viewBox="0 0 400 65" 
           fill="none" 
           preserveAspectRatio="none" 
-          className="w-full h-full opacity-80"
+          className="w-full h-full opacity-90"
         >
           <defs>
-            <linearGradient id="waveGlowGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <linearGradient id="waveGlowGradExact" x1="0%" y1="0%" x2="100%" y2="0%">
               <stop offset="0%" stopColor="#a855f7" stopOpacity="0.8" />
-              <stop offset="50%" stopColor="#8b5cf6" stopOpacity="0.6" />
-              <stop offset="75%" stopColor="#00f0ff" stopOpacity="0.95" />
+              <stop offset="45%" stopColor="#8b5cf6" stopOpacity="0.6" />
+              <stop offset="70%" stopColor="#00f0ff" stopOpacity="0.95" />
               <stop offset="100%" stopColor="#00f0ff" stopOpacity="1" />
             </linearGradient>
-            <filter id="cyanGlowEffect" x="-20%" y="-50%" width="140%" height="200%">
-              <feGaussianBlur stdDeviation="3.5" result="blur" />
+            <filter id="cyanGlowWaveFilter" x="-20%" y="-50%" width="140%" height="200%">
+              <feGaussianBlur stdDeviation="4" result="blur" />
               <feMerge>
                 <feMergeNode in="blur" />
                 <feMergeNode in="SourceGraphic" />
@@ -52,16 +52,16 @@ export const NetBalanceHero: React.FC<NetBalanceHeroProps> = ({
             </filter>
           </defs>
           <path
-            d="M 0 52 C 80 50 120 40 180 48 C 240 56 280 20 400 32"
-            stroke="url(#waveGlowGrad)"
+            d="M 0 54 C 80 52 130 42 190 48 C 250 54 290 18 400 30"
+            stroke="url(#waveGlowGradExact)"
             strokeWidth="3.5"
             fill="none"
-            filter="url(#cyanGlowEffect)"
+            filter="url(#cyanGlowWaveFilter)"
           />
         </svg>
       </div>
 
-      {/* Card Content Row */}
+      {/* Top Details & Wallet Row */}
       <div className="relative z-10 flex items-start justify-between">
         {/* Left Side: Label, Big Cyan Amount, Status Pill */}
         <div className="flex flex-col">
@@ -73,51 +73,51 @@ export const NetBalanceHero: React.FC<NetBalanceHeroProps> = ({
               title="Balance calculation details"
               className="hover:text-white transition-colors"
             >
-              <Info className="w-4 h-4 stroke-[1.8] text-slate-400 hover:text-white" />
+              <Info className="w-3.5 h-3.5 stroke-[2] text-slate-400 hover:text-white" />
             </button>
           </div>
 
           {/* Huge Glowing Cyan Amount */}
-          <div className="mt-2 text-4xl sm:text-5xl font-extrabold tracking-tight text-cyan-400 drop-shadow-[0_0_20px_rgba(0,240,255,0.45)]">
+          <div className="mt-2 text-4xl sm:text-5xl font-extrabold tracking-tight text-[#00f0ff] glow-text-cyan">
             {formattedAmount}
           </div>
 
-          {/* Status Badge Pill */}
+          {/* Status Badge Pill: [ ↗ In your favour ] */}
           <div className="mt-4 flex items-center">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-950/80 border border-purple-500/40 text-purple-300 text-xs font-semibold shadow-[0_0_12px_rgba(168,85,247,0.25)]">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#20103c]/90 border border-purple-500/50 text-purple-300 text-xs font-semibold shadow-[0_0_12px_rgba(168,85,247,0.3)]">
               <ArrowUpRight className="w-3.5 h-3.5 stroke-[2.5] text-purple-400" />
               <span>{isPositive ? 'In your favour' : 'You owe balance'}</span>
             </div>
           </div>
         </div>
 
-        {/* Right Side: 3D Isometric Neon Glass Wallet Illustration */}
-        <div className="relative w-28 h-24 sm:w-36 sm:h-28 flex items-center justify-center shrink-0">
+        {/* Right Side: 3D Isometric Glowing Neon Glass Wallet Illustration */}
+        <div className="relative w-32 h-24 sm:w-40 sm:h-28 flex items-center justify-center shrink-0 pr-2">
           <svg
-            viewBox="0 0 120 90"
+            viewBox="0 0 130 95"
             fill="none"
-            className="w-full h-full drop-shadow-[0_0_18px_rgba(168,85,247,0.6)]"
+            className="w-full h-full drop-shadow-[0_0_20px_rgba(168,85,247,0.7)]"
             xmlns="http://www.w3.org/2000/svg"
           >
             <defs>
-              <linearGradient id="walletBodyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.4" />
-                <stop offset="100%" stopColor="#1e1035" stopOpacity="0.8" />
+              <linearGradient id="walletBackBodyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#a855f7" stopOpacity="0.45" />
+                <stop offset="100%" stopColor="#190d2e" stopOpacity="0.85" />
               </linearGradient>
 
-              <linearGradient id="walletStrokeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <linearGradient id="walletMainStrokeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
                 <stop offset="0%" stopColor="#c084fc" />
-                <stop offset="70%" stopColor="#a855f7" />
+                <stop offset="60%" stopColor="#a855f7" />
                 <stop offset="100%" stopColor="#00f0ff" />
               </linearGradient>
 
-              <linearGradient id="walletFlapGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#00f0ff" stopOpacity="0.9" />
-                <stop offset="100%" stopColor="#38bdf8" stopOpacity="0.3" />
+              <linearGradient id="walletFrontBodyGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#2a164d" stopOpacity="0.8" />
+                <stop offset="100%" stopColor="#140a26" stopOpacity="0.95" />
               </linearGradient>
 
-              <filter id="neonSnapGlow" x="-50%" y="-50%" width="200%" height="200%">
-                <feGaussianBlur stdDeviation="3" result="blur" />
+              <filter id="neonSnapGlowExact" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="3.5" result="blur" />
                 <feMerge>
                   <feMergeNode in="blur" />
                   <feMergeNode in="SourceGraphic" />
@@ -125,49 +125,69 @@ export const NetBalanceHero: React.FC<NetBalanceHeroProps> = ({
               </filter>
             </defs>
 
-            {/* Back Fold / Rear Card Lip */}
+            {/* Back Flap (Isometric angled rear) */}
             <path
-              d="M 35 15 L 95 24 C 99 25 102 28 101 32 L 95 62 C 94 65 91 67 87 66 L 27 57 C 23 56 20 53 21 49 L 27 19 C 28 16 31 14 35 15 Z"
-              fill="rgba(35, 18, 65, 0.6)"
-              stroke="#a855f7"
+              d="M 38 16 L 102 24 C 107 24.5 110 28 109 33 L 103 66 C 102 70 98 72 94 71 L 30 62 C 25 61 22 57 23 52 L 29 21 C 30 17 34 15.5 38 16 Z"
+              fill="url(#walletBackBodyGrad)"
+              stroke="url(#walletMainStrokeGrad)"
               strokeWidth="2"
-              opacity="0.8"
+              opacity="0.85"
             />
 
-            {/* Main Front Body (Isometric tilted wallet) */}
+            {/* Inner Glowing Card Lip */}
             <path
-              d="M 28 28 L 88 28 C 94 28 98 32 98 38 L 98 68 C 98 74 94 78 88 78 L 28 78 C 22 78 18 74 18 68 L 18 38 C 18 32 22 28 28 28 Z"
-              fill="url(#walletBodyGrad)"
-              stroke="url(#walletStrokeGrad)"
-              strokeWidth="2.5"
-            />
-
-            {/* Inner Card Slit / Top Cyan Glowing Line */}
-            <path
-              d="M 26 38 L 90 38"
+              d="M 44 19 L 98 25"
               stroke="#00f0ff"
-              strokeWidth="2"
+              strokeWidth="2.5"
               strokeLinecap="round"
               opacity="0.9"
             />
 
-            {/* Front Pocket Lip Contour */}
+            {/* Main Front Body (Rounded isometric pocket) */}
+            <rect
+              x="22"
+              y="30"
+              width="82"
+              height="52"
+              rx="12"
+              fill="url(#walletFrontBodyGrad)"
+              stroke="url(#walletMainStrokeGrad)"
+              strokeWidth="2.5"
+            />
+
+            {/* Top Cyan Lip of Front Pocket */}
             <path
-              d="M 18 52 C 32 52 40 58 58 58 C 76 58 84 52 98 52"
-              stroke="rgba(192, 132, 252, 0.6)"
-              strokeWidth="1.5"
+              d="M 28 36 L 98 36"
+              stroke="#00f0ff"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              opacity="0.95"
+            />
+
+            {/* Front Pocket Curved Stitching/Contour */}
+            <path
+              d="M 22 56 C 36 56 46 62 63 62 C 80 62 90 56 104 56"
+              stroke="rgba(192, 132, 252, 0.7)"
+              strokeWidth="1.8"
               fill="none"
             />
 
             {/* Glowing Cyan Snap Button / Clasp */}
             <circle
-              cx="58"
-              cy="58"
-              r="4.5"
+              cx="63"
+              cy="62"
+              r="5"
               fill="#00f0ff"
               stroke="#ffffff"
-              strokeWidth="1.5"
-              filter="url(#neonSnapGlow)"
+              strokeWidth="1.8"
+              filter="url(#neonSnapGlowExact)"
+            />
+            {/* Inner highlight dot */}
+            <circle
+              cx="61.5"
+              cy="60.5"
+              r="1.5"
+              fill="#ffffff"
             />
           </svg>
         </div>

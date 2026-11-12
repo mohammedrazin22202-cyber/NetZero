@@ -17,55 +17,75 @@ export const QuickActionsRow: React.FC<QuickActionsRowProps> = ({
   onCustomSplit,
 }) => {
   return (
-    <div className="w-full my-4 select-none">
-      <h3 className="text-sm font-semibold text-white mb-2.5 px-1">
+    <div className="w-full my-3 select-none">
+      <h3 className="text-sm font-semibold text-white mb-2.5 px-0.5">
         Quick Actions
       </h3>
 
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 sm:gap-3">
-        {/* 1. Add Expense (Highlighted bright glowing cyan button) */}
+      <div className="grid grid-cols-5 gap-3">
+        {/* 1. Add Expense (Solid glowing cyan pill with black text and icon on top) */}
         <button
           onClick={onAddExpense}
-          className="col-span-2 sm:col-span-1 rounded-2xl py-3 px-3.5 btn-neon-cyan flex flex-row items-center justify-center gap-2 font-bold text-xs sm:text-sm active:scale-95 transition-transform"
+          className="rounded-2xl py-3 px-2 btn-neon-cyan flex flex-col items-center justify-center gap-1.5 active:scale-95 transition-transform"
         >
-          <PlusCircle className="w-4 h-4 stroke-[2.5]" />
-          <span>Add Expense</span>
+          <div className="w-6 h-6 flex items-center justify-center">
+            <PlusCircle className="w-5 h-5 stroke-[2.5]" />
+          </div>
+          <span className="text-xs font-extrabold text-slate-950 whitespace-nowrap">
+            Add Expense
+          </span>
         </button>
 
         {/* 2. Split Bill */}
         <button
           onClick={onSplitBill}
-          className="rounded-2xl py-3 px-2 sm:px-3 btn-glass-action flex flex-row items-center justify-center gap-2 text-xs sm:text-sm font-medium active:scale-95"
+          className="rounded-2xl py-3 px-2 btn-glass-action flex flex-col items-center justify-center gap-1.5 active:scale-95"
         >
-          <Users className="w-4 h-4 text-purple-400 stroke-[2]" />
-          <span>Split Bill</span>
+          <div className="w-6 h-6 flex items-center justify-center text-slate-200">
+            <Users className="w-5 h-5 stroke-[2]" />
+          </div>
+          <span className="text-xs font-medium text-white whitespace-nowrap">
+            Split Bill
+          </span>
         </button>
 
         {/* 3. Record Payment */}
         <button
           onClick={onRecordPayment}
-          className="rounded-2xl py-3 px-2 sm:px-3 btn-glass-action flex flex-row items-center justify-center gap-2 text-xs sm:text-sm font-medium active:scale-95"
+          className="rounded-2xl py-3 px-2 btn-glass-action flex flex-col items-center justify-center gap-1.5 active:scale-95"
         >
-          <CheckCircle2 className="w-4 h-4 text-purple-400 stroke-[2]" />
-          <span className="truncate">Record Payment</span>
+          <div className="w-6 h-6 flex items-center justify-center text-slate-200">
+            <CheckCircle2 className="w-5 h-5 stroke-[2]" />
+          </div>
+          <span className="text-xs font-medium text-white whitespace-nowrap">
+            Record Payment
+          </span>
         </button>
 
         {/* 4. Settle Up */}
         <button
           onClick={onSettleUp}
-          className="rounded-2xl py-3 px-2 sm:px-3 btn-glass-action flex flex-row items-center justify-center gap-2 text-xs sm:text-sm font-medium active:scale-95"
+          className="rounded-2xl py-3 px-2 btn-glass-action flex flex-col items-center justify-center gap-1.5 active:scale-95"
         >
-          <ArrowLeftRight className="w-4 h-4 text-purple-400 stroke-[2]" />
-          <span>Settle Up</span>
+          <div className="w-6 h-6 flex items-center justify-center text-slate-200">
+            <ArrowLeftRight className="w-5 h-5 stroke-[2]" />
+          </div>
+          <span className="text-xs font-medium text-white whitespace-nowrap">
+            Settle Up
+          </span>
         </button>
 
         {/* 5. Custom Split */}
         <button
           onClick={onCustomSplit}
-          className="rounded-2xl py-3 px-2 sm:px-3 btn-glass-action flex flex-row items-center justify-center gap-2 text-xs sm:text-sm font-medium active:scale-95"
+          className="rounded-2xl py-3 px-2 btn-glass-action flex flex-col items-center justify-center gap-1.5 active:scale-95"
         >
-          <SlidersHorizontal className="w-4 h-4 text-purple-400 stroke-[2]" />
-          <span>Custom Split</span>
+          <div className="w-6 h-6 flex items-center justify-center text-slate-200">
+            <SlidersHorizontal className="w-5 h-5 stroke-[2]" />
+          </div>
+          <span className="text-xs font-medium text-white whitespace-nowrap">
+            Custom Split
+          </span>
         </button>
       </div>
     </div>

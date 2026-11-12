@@ -20,10 +20,10 @@ export const ThisMonthCard: React.FC<ThisMonthCardProps> = ({
   return (
     <div 
       onClick={onClick}
-      className="neon-glass-card rounded-3xl p-5 sm:p-6 select-none flex flex-col justify-between cursor-pointer hover:border-purple-400/50 transition-all"
+      className="neon-glass-card neon-card-cyan-corner rounded-3xl p-5 select-none flex flex-col justify-between cursor-pointer hover:border-purple-400/50 transition-all"
     >
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-3">
         <h3 className="text-base font-semibold text-white">
           This Month
         </h3>
@@ -36,33 +36,33 @@ export const ThisMonthCard: React.FC<ThisMonthCardProps> = ({
       </div>
 
       {/* 2 Comparison Vertical Glass Bars */}
-      <div className="pt-2 pb-1 flex items-end justify-center gap-6 sm:gap-10">
+      <div className="pt-2 pb-1 flex items-end justify-center gap-8 sm:gap-12">
         {/* Bar 1: Last Month */}
         <div className="flex flex-col items-center">
-          <span className="text-sm font-bold text-white mb-2.5 tracking-tight">
+          <span className="text-xs sm:text-sm font-bold text-white mb-2 tracking-tight">
             {currency.symbol}{lastMonthSpent.toFixed(2)}
           </span>
 
           <div 
-            className="w-20 sm:w-24 h-16 sm:h-[72px] rounded-2xl bg-gradient-to-t from-purple-900/60 to-purple-600/40 border border-purple-500/40 shadow-[0_0_15px_rgba(168,85,247,0.25)] transition-transform hover:scale-105"
+            className="w-18 sm:w-20 h-16 sm:h-[68px] rounded-2xl bg-gradient-to-t from-purple-950/80 via-purple-900/60 to-purple-600/40 border border-purple-500/40 shadow-[0_0_15px_rgba(168,85,247,0.3)] transition-transform hover:scale-105"
           />
 
-          <span className="text-xs text-slate-400 font-medium mt-2.5">
+          <span className="text-[11px] sm:text-xs text-slate-400 font-medium mt-2">
             Last Month
           </span>
         </div>
 
         {/* Bar 2: This Month */}
         <div className="flex flex-col items-center">
-          <span className="text-sm font-bold text-white mb-2.5 tracking-tight">
+          <span className="text-xs sm:text-sm font-bold text-white mb-2 tracking-tight">
             {currency.symbol}{thisMonthSpent.toFixed(2)}
           </span>
 
           <div 
-            className="w-20 sm:w-24 h-14 sm:h-[58px] rounded-2xl bg-gradient-to-t from-cyan-600/90 to-cyan-400 border border-cyan-300 shadow-[0_0_22px_rgba(0,240,255,0.6)] transition-transform hover:scale-105"
+            className="w-18 sm:w-20 h-14 sm:h-[54px] rounded-2xl bg-gradient-to-t from-cyan-600/90 to-cyan-400 border border-cyan-300 shadow-[0_0_24px_rgba(0,240,255,0.7)] transition-transform hover:scale-105"
           />
 
-          <span className="text-xs text-slate-400 font-medium mt-2.5">
+          <span className="text-[11px] sm:text-xs text-slate-400 font-medium mt-2">
             This Month
           </span>
         </div>
