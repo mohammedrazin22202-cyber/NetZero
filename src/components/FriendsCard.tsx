@@ -28,9 +28,9 @@ export const FriendsCard: React.FC<FriendsCardProps> = ({
   const balanceText = `${balancePrefix}${currency.symbol}${Math.abs(netBalance).toFixed(2)}`;
 
   return (
-    <div className="neon-glass-card rounded-3xl p-5 select-none flex flex-col justify-between">
+    <div className="neon-glass-card rounded-3xl p-5 select-none flex flex-col justify-between h-[215px]">
       {/* Header */}
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-2">
         <h3 className="text-base font-semibold text-white">
           Friends ({friendCount})
         </h3>
@@ -81,10 +81,10 @@ export const FriendsCard: React.FC<FriendsCardProps> = ({
       </div>
 
       {/* Bottom Full-Width Add Friend Button */}
-      <div className="mt-4">
+      <div className="mt-2">
         <button
           onClick={onAddFriend}
-          className="w-full py-3 rounded-2xl bg-[#18112c]/85 border border-purple-500/35 hover:border-purple-400/70 text-white font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-[0_0_14px_rgba(168,85,247,0.18)] hover:shadow-[0_0_22px_rgba(168,85,247,0.35)] transition-all active:scale-[0.99]"
+          className="w-full py-2.5 rounded-2xl bg-[#18112c]/85 border border-purple-500/35 hover:border-purple-400/70 text-white font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-[0_0_14px_rgba(168,85,247,0.18)] hover:shadow-[0_0_22px_rgba(168,85,247,0.35)] transition-all active:scale-[0.99]"
         >
           <Plus className="w-4 h-4 stroke-[2.5] text-purple-400" />
           <span>Add Friend</span>

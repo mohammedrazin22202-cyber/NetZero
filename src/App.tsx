@@ -389,7 +389,7 @@ export function App() {
       />
 
       {/* Main App Workspace (Right of Sidebar) */}
-      <div className="flex-1 flex flex-col min-w-0 min-h-screen px-4 sm:px-7 py-2.5 relative z-10 overflow-y-auto">
+      <div className="flex-1 flex flex-col min-w-0 min-h-screen px-4 sm:px-6 py-2.5 relative z-10 overflow-y-auto">
         {/* Top Header Bar */}
         <TopBar
           currentUser={state.currentUser}
@@ -409,7 +409,7 @@ export function App() {
 
         {/* View Switcher based on Sidebar Navigation */}
         {activeNav === 'dashboard' ? (
-          <div className="w-full flex flex-col gap-3 pb-10 animate-fadeIn">
+          <div className="w-full flex flex-col gap-3 pb-8 animate-fadeIn">
             {/* Greeting Row */}
             <GreetingRow
               userName={state.currentUser.name}
@@ -422,9 +422,9 @@ export function App() {
               {/* Left/Center Main Column */}
               <div className="lg:col-span-7 xl:col-span-8 flex flex-col gap-4">
                 {/* Row 1: Net Balance Card + 2x2 Stat Cards Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5 items-stretch">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5 items-stretch h-[195px]">
                   {/* Net Balance Card */}
-                  <div className="md:col-span-7 flex flex-col">
+                  <div className="md:col-span-7 flex flex-col h-full">
                     <NetBalanceHero
                       netBalance={displayNetBalance}
                       currency={state.currency}
@@ -433,7 +433,7 @@ export function App() {
                   </div>
 
                   {/* 2x2 Stat Cards */}
-                  <div className="md:col-span-5 flex flex-col justify-between">
+                  <div className="md:col-span-5 flex flex-col justify-between h-full">
                     <StatCardsGrid
                       lentAmount={displayLent}
                       settledAmount={displaySettled}
@@ -473,7 +473,7 @@ export function App() {
 
               {/* Right Column */}
               <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-4">
-                {/* Spending Overview Donut Chart */}
+                {/* Spending Overview Donut Chart (Height: 195px, matches Row 1) */}
                 <SpendingOverviewCard
                   totalSpent={56.00}
                   currency={state.currency}
@@ -489,7 +489,7 @@ export function App() {
                   onClick={() => setActiveNav('analytics')}
                 />
 
-                {/* Friends Card */}
+                {/* Friends Card (Height: 215px, matches Recent Transactions) */}
                 <FriendsCard
                   friend={state.user2}
                   friendCount={state.friends.length || 1}

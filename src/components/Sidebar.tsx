@@ -32,16 +32,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenUpgrade,
 }) => {
   return (
-    <aside className="w-60 min-w-[230px] shrink-0 min-h-screen flex flex-col justify-between p-5 z-20 select-none backdrop-blur-xl bg-[#080512]/70">
+    <aside className="w-56 min-w-[220px] shrink-0 min-h-screen flex flex-col justify-between p-5 z-20 select-none">
       <div>
         {/* Brand Logo & Name */}
-        <div className="flex items-center gap-3 mb-9 pl-1">
+        <div className="flex items-center gap-3 mb-8 pl-1">
           {/* Exact Stylized 3D Neon Ribbon "N" Mark */}
           <div className="relative w-10 h-10 flex items-center justify-center shrink-0">
             <svg 
               viewBox="0 0 46 46" 
               fill="none" 
-              className="w-10 h-10 drop-shadow-[0_0_14px_rgba(0,240,255,0.7)]"
+              className="w-10 h-10 drop-shadow-[0_0_14px_rgba(0,240,255,0.75)]"
               xmlns="http://www.w3.org/2000/svg"
             >
               <defs>
@@ -81,7 +81,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <h1 className="text-xl font-bold tracking-tight text-white leading-none">
               NetZero
             </h1>
-            <p className="text-[10px] font-medium text-slate-400 mt-1 tracking-wider uppercase">
+            <p className="text-[10px] font-medium text-slate-400 mt-1 tracking-wider">
               Split • Track • Settle
             </p>
           </div>
@@ -92,7 +92,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {/* Dashboard */}
           <button
             onClick={() => onSelectNav('dashboard')}
-            className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-2xl text-sm font-semibold transition-all duration-200 ${
+            className={`w-full flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-sm font-semibold transition-all duration-200 ${
               activeNav === 'dashboard'
                 ? 'nav-pill-active text-white'
                 : 'text-slate-400 hover:text-white hover:bg-white/5'
@@ -105,7 +105,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {/* Friends */}
           <button
             onClick={() => onSelectNav('friends')}
-            className={`w-full flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-sm font-medium transition-all duration-200 ${
+            className={`w-full flex items-center gap-3.5 px-4 py-2 rounded-2xl text-sm font-medium transition-all duration-200 ${
               activeNav === 'friends'
                 ? 'nav-pill-active text-white'
                 : 'text-slate-400 hover:text-white hover:bg-white/5'
@@ -118,7 +118,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {/* Transactions */}
           <button
             onClick={() => onSelectNav('transactions')}
-            className={`w-full flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-sm font-medium transition-all duration-200 ${
+            className={`w-full flex items-center gap-3.5 px-4 py-2 rounded-2xl text-sm font-medium transition-all duration-200 ${
               activeNav === 'transactions'
                 ? 'nav-pill-active text-white'
                 : 'text-slate-400 hover:text-white hover:bg-white/5'
@@ -131,7 +131,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {/* Analytics */}
           <button
             onClick={() => onSelectNav('analytics')}
-            className={`w-full flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-sm font-medium transition-all duration-200 ${
+            className={`w-full flex items-center gap-3.5 px-4 py-2 rounded-2xl text-sm font-medium transition-all duration-200 ${
               activeNav === 'analytics'
                 ? 'nav-pill-active text-white'
                 : 'text-slate-400 hover:text-white hover:bg-white/5'
@@ -144,7 +144,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {/* Settlements */}
           <button
             onClick={() => onSelectNav('settlements')}
-            className={`w-full flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-sm font-medium transition-all duration-200 ${
+            className={`w-full flex items-center gap-3.5 px-4 py-2 rounded-2xl text-sm font-medium transition-all duration-200 ${
               activeNav === 'settlements'
                 ? 'nav-pill-active text-white'
                 : 'text-slate-400 hover:text-white hover:bg-white/5'
@@ -155,12 +155,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </button>
 
           {/* Spacer */}
-          <div className="h-5" />
+          <div className="h-4" />
 
           {/* Categories */}
           <button
             onClick={() => onSelectNav('categories')}
-            className={`w-full flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-sm font-medium transition-all duration-200 ${
+            className={`w-full flex items-center gap-3.5 px-4 py-2 rounded-2xl text-sm font-medium transition-all duration-200 ${
               activeNav === 'categories'
                 ? 'nav-pill-active text-white'
                 : 'text-slate-400 hover:text-white hover:bg-white/5'
@@ -173,7 +173,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {/* Settings */}
           <button
             onClick={() => onSelectNav('settings')}
-            className={`w-full flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-sm font-medium transition-all duration-200 ${
+            className={`w-full flex items-center gap-3.5 px-4 py-2 rounded-2xl text-sm font-medium transition-all duration-200 ${
               activeNav === 'settings'
                 ? 'nav-pill-active text-white'
                 : 'text-slate-400 hover:text-white hover:bg-white/5'

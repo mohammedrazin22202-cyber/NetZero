@@ -31,14 +31,14 @@ export const SpendingOverviewCard: React.FC<SpendingOverviewCardProps> = ({
   let cumulativeOffset = 0;
 
   return (
-    <div className="neon-glass-card neon-card-cyan-corner rounded-3xl p-5 select-none flex flex-col justify-between h-[200px]">
+    <div className="neon-glass-card neon-card-cyan-corner rounded-3xl p-5 select-none flex flex-col justify-between h-[195px]">
       {/* Header */}
       <h3 className="text-base font-semibold text-white">
         Spending Overview
       </h3>
 
       {/* Donut Chart & Legend Row */}
-      <div className="flex items-center justify-between gap-4 mt-2">
+      <div className="flex items-center justify-between gap-4 mt-1">
         {/* Left: Donut Chart with Center Text */}
         <div className="relative w-32 h-32 flex items-center justify-center shrink-0">
           <svg

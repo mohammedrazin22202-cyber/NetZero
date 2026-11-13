@@ -78,25 +78,29 @@ export const RecentTransactionsCard: React.FC<RecentTransactionsCardProps> = ({
   };
 
   return (
-    <div className="neon-glass-card rounded-3xl p-5 select-none flex flex-col justify-between">
+    <div className="neon-glass-card rounded-3xl p-5 select-none flex flex-col justify-between h-[215px]">
       {/* Header */}
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-base font-semibold text-white">
-          Recent Transactions
-        </h3>
-        <button
-          onClick={onViewAll}
-          className="text-xs sm:text-sm font-semibold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition-colors"
-        >
-          <span>View All</span>
-          <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
-        </button>
+      <div>
+        <div className="flex items-center justify-between pb-3">
+          <h3 className="text-base font-semibold text-white">
+            Recent Transactions
+          </h3>
+          <button
+            onClick={onViewAll}
+            className="text-xs sm:text-sm font-semibold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition-colors"
+          >
+            <span>View All</span>
+            <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
+          </button>
+        </div>
+        {/* Subtle Hairline Horizontal Divider */}
+        <div className="w-full h-px bg-purple-500/20 mb-2" />
       </div>
 
       {/* Transactions List */}
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col justify-between flex-1 py-1">
         {recent.length === 0 ? (
-          <div className="py-8 text-center text-sm text-slate-400">
+          <div className="py-6 text-center text-sm text-slate-400">
             No transactions yet.
           </div>
         ) : (
@@ -110,11 +114,11 @@ export const RecentTransactionsCard: React.FC<RecentTransactionsCardProps> = ({
               <div
                 key={tx.id}
                 onClick={() => onSelectTransaction?.(tx)}
-                className="py-2.5 px-2 flex items-center justify-between gap-3 group cursor-pointer hover:bg-white/[0.03] rounded-2xl transition-colors"
+                className="py-1 px-2 flex items-center justify-between gap-3 group cursor-pointer hover:bg-white/[0.03] rounded-2xl transition-colors"
               >
                 {/* Left: Icon & Details */}
                 <div className="flex items-center gap-3.5 min-w-0">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${bg}`}>
+                  <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${bg}`}>
                     {icon}
                   </div>
 

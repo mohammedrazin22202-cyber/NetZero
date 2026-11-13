@@ -26,11 +26,11 @@ export const StatCardsGrid: React.FC<StatCardsGridProps> = ({
   onTransactionsClick,
 }) => {
   return (
-    <div className="grid grid-cols-2 gap-3 select-none h-full">
+    <div className="grid grid-cols-2 gap-3.5 select-none h-[195px]">
       {/* 1. You Lent */}
       <div 
         onClick={onLentClick}
-        className="neon-glass-card rounded-2xl p-3.5 flex items-center gap-3 cursor-pointer hover:border-purple-400/60 transition-all active:scale-[0.98]"
+        className="neon-glass-card rounded-2xl p-3 flex items-center gap-3 cursor-pointer hover:border-purple-400/60 transition-all active:scale-[0.98]"
       >
         <div className="w-10 h-10 rounded-xl bg-[#221040]/90 border border-purple-500/50 flex items-center justify-center text-purple-400 shadow-[0_0_12px_rgba(168,85,247,0.4)] shrink-0">
           <ArrowUpRight className="w-4 h-4 stroke-[2.5]" />
@@ -48,7 +48,7 @@ export const StatCardsGrid: React.FC<StatCardsGridProps> = ({
       {/* 2. Settled */}
       <div 
         onClick={onSettledClick}
-        className="neon-glass-card rounded-2xl p-3.5 flex items-center gap-3 cursor-pointer hover:border-purple-400/60 transition-all active:scale-[0.98]"
+        className="neon-glass-card rounded-2xl p-3 flex items-center gap-3 cursor-pointer hover:border-purple-400/60 transition-all active:scale-[0.98]"
       >
         <div className="w-10 h-10 rounded-full bg-[#0a2333]/90 border border-cyan-500/50 flex items-center justify-center text-cyan-400 shadow-[0_0_12px_rgba(0,240,255,0.4)] shrink-0">
           <Check className="w-4 h-4 stroke-[2.5]" />
@@ -66,7 +66,7 @@ export const StatCardsGrid: React.FC<StatCardsGridProps> = ({
       {/* 3. You Borrowed */}
       <div 
         onClick={onBorrowedClick}
-        className="neon-glass-card rounded-2xl p-3.5 flex items-center gap-3 cursor-pointer hover:border-purple-400/60 transition-all active:scale-[0.98]"
+        className="neon-glass-card rounded-2xl p-3 flex items-center gap-3 cursor-pointer hover:border-purple-400/60 transition-all active:scale-[0.98]"
       >
         <div className="w-10 h-10 rounded-xl bg-[#221040]/90 border border-purple-500/50 flex items-center justify-center text-purple-400 shadow-[0_0_12px_rgba(168,85,247,0.4)] shrink-0">
           <ArrowDownRight className="w-4 h-4 stroke-[2.5]" />
@@ -84,7 +84,7 @@ export const StatCardsGrid: React.FC<StatCardsGridProps> = ({
       {/* 4. Transactions */}
       <div 
         onClick={onTransactionsClick}
-        className="neon-glass-card rounded-2xl p-3.5 flex items-center gap-3 cursor-pointer hover:border-purple-400/60 transition-all active:scale-[0.98]"
+        className="neon-glass-card rounded-2xl p-3 flex items-center gap-3 cursor-pointer hover:border-purple-400/60 transition-all active:scale-[0.98]"
       >
         <div className="w-10 h-10 rounded-xl bg-[#221040]/90 border border-purple-500/50 flex items-center justify-center text-purple-400 shadow-[0_0_12px_rgba(168,85,247,0.4)] shrink-0">
           <FileText className="w-4 h-4 stroke-[2.2]" />

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Bell, Sun, Moon, ChevronDown } from 'lucide-react';
+import { Search, Bell, ChevronDown } from 'lucide-react';
 import { UserProfile } from '../types';
 
 interface TopBarProps {
@@ -19,12 +19,11 @@ export const TopBar: React.FC<TopBarProps> = ({
   onOpenNotifications,
   onToggleTheme,
   onOpenProfile,
-  theme = 'dark',
 }) => {
   return (
-    <header className="w-full flex items-center justify-between gap-4 py-3 select-none">
+    <header className="w-full flex items-center justify-between gap-4 py-2 select-none">
       {/* Search Input Container */}
-      <div className="relative flex-1 max-w-xl">
+      <div className="relative w-[460px] max-w-full">
         <div className="relative flex items-center w-full">
           <div className="absolute left-4 text-slate-400 pointer-events-none flex items-center">
             <Search className="w-4 h-4 stroke-[2]" />
@@ -35,7 +34,7 @@ export const TopBar: React.FC<TopBarProps> = ({
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Search friends, expenses, notes..."
-            className="w-full h-11 pl-11 pr-20 rounded-full bg-[#130b22]/90 border border-purple-500/30 text-white text-xs sm:text-sm placeholder:text-slate-400 focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400/50 shadow-[0_0_15px_rgba(168,85,247,0.12)] transition-all"
+            className="w-full h-10 pl-11 pr-20 rounded-full bg-[#130b22]/90 border border-purple-500/30 text-white text-xs sm:text-sm placeholder:text-slate-400 focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400/50 shadow-[0_0_15px_rgba(168,85,247,0.12)] transition-all"
           />
 
           <div className="absolute right-3.5 flex items-center gap-1 pointer-events-none">
@@ -59,29 +58,28 @@ export const TopBar: React.FC<TopBarProps> = ({
           <span className="absolute top-2 right-2.5 w-2 h-2 rounded-full bg-[#00f0ff] shadow-[0_0_8px_#00f0ff]" />
         </button>
 
-        {/* Theme Toggle Button (Sun icon in golden yellow) */}
+        {/* Theme Sun Toggle with Radial Sunburst Rays */}
         <button
           onClick={onToggleTheme}
           title="Toggle Theme"
-          className="w-10 h-10 rounded-full bg-[#150d27]/90 border border-purple-500/30 flex items-center justify-center text-amber-400 hover:text-amber-300 hover:border-amber-400/60 shadow-[0_0_15px_rgba(251,191,36,0.25)] transition-all active:scale-95"
+          className="w-10 h-10 rounded-full bg-[#150d27]/90 border border-purple-500/30 flex items-center justify-center text-amber-400 hover:text-amber-300 hover:border-amber-400/60 shadow-[0_0_15px_rgba(251,191,36,0.3)] transition-all active:scale-95"
         >
-          {theme === 'dark' ? (
-            <Sun className="w-4 h-4 stroke-[2.2] text-amber-400 fill-amber-400/20" />
-          ) : (
-            <Moon className="w-4 h-4 stroke-[2.2] text-purple-400" />
-          )}
+          <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5 text-amber-400">
+            <circle cx="12" cy="12" r="4.5" fill="#fbbf24" />
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" stroke="#fbbf24" strokeWidth="2" strokeLinecap="round" />
+          </svg>
         </button>
 
         {/* Profile Avatar Dropdown */}
         <button
           onClick={onOpenProfile}
           title="Profile & Settings"
-          className="flex items-center gap-1.5 pl-1 pr-1.5 py-1 rounded-full hover:bg-white/5 transition-all group"
+          className="flex items-center gap-1.5 pl-1 pr-1 py-1 rounded-full hover:bg-white/5 transition-all group"
         >
-          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-700 via-purple-600 to-fuchsia-600 flex items-center justify-center text-white font-bold text-sm shadow-[0_0_15px_rgba(168,85,247,0.45)]">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-700 via-purple-600 to-fuchsia-600 flex items-center justify-center text-white font-bold text-sm shadow-[0_0_15px_rgba(168,85,247,0.5)]">
             {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'M'}
           </div>
-          <ChevronDown className="w-4 h-4 text-slate-400 group-hover:text-white transition-colors" />
+          <ChevronDown className="w-3.5 h-3.5 text-slate-400 group-hover:text-white transition-colors" />
         </button>
       </div>
     </header>
