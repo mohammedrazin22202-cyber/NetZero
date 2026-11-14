@@ -1,33 +1,48 @@
-# ⚖️ NetZero
+# ⚡ NetZero
 
-> An ultra-fast, zero-friction money tracker designed specifically for best friends who lend, borrow, and split expenses frequently. Get your balance down to net zero!
+> A futuristic, zero-friction expense splitter and financial balancer with bioluminescent neon glassmorphic design. Split, track, and balance shared expenses down to net zero!
+
+![NetZero Dashboard Preview](public/preview.png)
 
 Never let forgotten loans or awkward *"hey, did you ever pay me back for that?"* conversations happen again.
 
 ---
 
-## ⚡ Features
+## ✨ Features
 
-- **🎯 Zero-Mental-Math Hero Dashboard**: One giant number at the top shows exactly who owes whom and by how much (`+ $45.00 Sam owes you` or `- $20.00 You owe Sam`).
-- **⚡ 3-Tap Quick Logging**:
-  - `I Lent Friend` (100% friend's share)
-  - `Split 50/50` (Equal halves)
-  - `Friend Paid for Me`
-  - `Custom Split`
-- **💬 One-Click WhatsApp / Text Ping**: Generates a friendly, casual reminder with full breakdown and settlement links so you never have to feel awkward asking.
-- **🤝 Instant Settlement & QR Codes**:
-  - Generate instant UPI intent / QR codes.
-  - Direct PayPal.me links.
-  - Cash / Bank settlement records with instant balance clearing.
-- **🔄 Perspective Switcher**: Switch view between *"Alex"* and *"Sam"* in 1-click so both friends can verify balances or use it on either device.
-- **📊 Visual Analytics**: Category breakdowns, total shared spend, and upfront payer comparison graphs.
-- **🌍 Multi-Currency**: Switch effortlessly between $, ₹, €, £, C$, A$, ¥.
-- **💾 Offline & Privacy First**: Runs 100% locally in your browser with LocalStorage. Includes CSV export and JSON backup/restore.
-- **📱 PWA Ready**: Install straight to your iOS or Android home screen with zero app store hassle.
+- **🎯 Futuristic Neon Glassmorphic UI**:
+  - Deep midnight canvas with ambient bioluminescent 3D neon glass ribbons and fluid glowing wave contours.
+  - Isometric 3D glowing glass wallet artwork with ambient purple/cyan specular highlights.
+  - Claymorphic action buttons with tactile beveling and intense cyan bloom.
+- **📊 Real-Time Financial Overview**:
+  - **Net Balance Hero Card**: Clear indication of balance in your favor or owed, with quick insight tooltips.
+  - **2×2 Quick Metrics**: Real-time totals for *You Lent*, *Settled*, *You Borrowed*, and *Total Transactions*.
+  - **Spending Overview Donut Chart**: High-contrast neon donut breakdown across Food & Dining, Entertainment, and Transport.
+  - **Monthly Comparison Bar Chart**: Dual 3D glass pill bars comparing current vs. previous month spending with percentage delta badges.
+- **⚡ 1-Tap Quick Actions**:
+  - `⊕ Add Expense`: Custom or itemized expense logging with instant share calculation.
+  - `👥 Split Bill`: 50/50 equal splits with receipt notes.
+  - `✓ Record Payment`: Record offline or cash transfers.
+  - `⇄ Settle Up`: One-tap balance clearing and instant WhatsApp ping generation.
+  - `🎚 Custom Split`: Percentage or itemized split per friend.
+- **👥 Multi-Friend Ledger**:
+  - Switch ledgers seamlessly between friends.
+  - Add new friends with custom payment IDs (UPI, PayPal, Venmo).
+- **⌨️ Power Keyboard Shortcuts**:
+  - `Ctrl + K`: Quick search across friends, expenses, and notes.
+  - `N`: Open new expense logger.
+  - `S`: Trigger instant settle up modal.
+  - `P`: Toggle active perspective between friends.
+  - `T`: Toggle light / dark mode.
+  - `?`: Open keyboard shortcuts cheat sheet.
+- **💾 Offline & Privacy First**:
+  - Runs 100% locally in your browser with LocalStorage.
+  - Complete data privacy with zero external telemetry.
+  - Full CSV export and JSON backup/restore capabilities.
 
 ---
 
-## 🚀 Running the App Locally
+## 🚀 Running Locally
 
 ```bash
 # 1. Install dependencies
@@ -44,9 +59,10 @@ Then open `http://localhost:5173` in your browser.
 
 ---
 
-## 📱 How to Use on Your Phone
+## 🛠 Tech Stack
 
-1. Run `npm run dev -- --host` on your computer on the same Wi-Fi.
-2. Open the URL on your mobile phone browser (e.g. `http://192.168.x.x:5173`).
-3. Tap **Share** (Safari on iOS) or **Menu (⋮)** (Chrome on Android) &rarr; **"Add to Home Screen"**.
-4. The app will launch full-screen just like a native app from the App Store!
+- **Framework**: [React 18](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/)
+- **Bundler**: [Vite](https://vitejs.dev/)
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/) with custom neon color palettes, claymorphic lighting, and glow filters
+- **Icons**: [Lucide React](https://lucide.dev/)
+- **Typography**: [Plus Jakarta Sans](https://fonts.google.com/specimen/Plus+Jakarta+Sans)
