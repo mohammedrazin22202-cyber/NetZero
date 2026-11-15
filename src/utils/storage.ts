@@ -1,7 +1,7 @@
 import { AppState, Transaction, UserProfile } from '../types';
 import { DEFAULT_CURRENCY } from './currencies';
 
-const STORAGE_KEY = 'account_balancer_state_v1';
+const STORAGE_KEY = 'netzero_dashboard_v6';
 
 export const INITIAL_USER_1: UserProfile = {
   id: 'user_1',
@@ -97,23 +97,20 @@ export function loadAppState(): AppState {
     if (!raw) return DEFAULT_STATE;
     const parsed = JSON.parse(raw);
 
+    const rawName = (parsed.currentUser?.name || parsed.user1?.name || '').trim();
+    const cleanName = rawName && rawName !== 'Me (Alex)' ? rawName : 'MegaTron';
+
     const currentUser: UserProfile = {
       ...INITIAL_USER_1,
       ...(parsed.currentUser || parsed.user1 || {}),
       id: INITIAL_USER_1.id,
-      name: (parsed.currentUser?.name || parsed.user1?.name || '').trim() || INITIAL_USER_1.name,
+      name: cleanName,
+      avatar: cleanName.charAt(0).toUpperCase(),
     };
 
     let friends: UserProfile[] = Array.isArray(parsed.friends) && parsed.friends.length > 0
       ? parsed.friends
-      : [
-          {
-            ...INITIAL_USER_2,
-            ...(parsed.user2 || {}),
-            id: parsed.user2?.id || INITIAL_USER_2.id,
-            name: (parsed.user2?.name || '').trim() || INITIAL_USER_2.name,
-          },
-        ];
+      : [INITIAL_USER_2];
 
     let selectedFriendId = parsed.selectedFriendId || friends[0].id;
     let activeFriend = friends.find((f) => f.id === selectedFriendId) || friends[0];
@@ -125,14 +122,14 @@ export function loadAppState(): AppState {
         ? parsed.friendTransactions
         : {};
 
-    // Ensure currently selected friend has their transactions list
-    if (!friendTransactions[selectedFriendId]) {
-      friendTransactions[selectedFriendId] = Array.isArray(parsed.transactions)
-        ? parsed.transactions
-        : SAMPLE_TRANSACTIONS;
+    const hasOldPizzaData = Array.isArray(parsed.transactions) &&
+      parsed.transactions.some((t: Transaction) => t.title && t.title.includes('Pizza'));
+
+    if (!friendTransactions[selectedFriendId] || hasOldPizzaData) {
+      friendTransactions[selectedFriendId] = SAMPLE_TRANSACTIONS;
     }
 
-    const currentTransactions = friendTransactions[selectedFriendId] || [];
+    const currentTransactions = friendTransactions[selectedFriendId] || SAMPLE_TRANSACTIONS;
 
     const activeUserId =
       parsed.activeUserId === activeFriend.id ? activeFriend.id : currentUser.id;

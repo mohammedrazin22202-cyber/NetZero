@@ -49,6 +49,7 @@ export function App() {
   const [isProOpen, setIsProOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isAddFriendOpen, setIsAddFriendOpen] = useState(false);
+  const [selectedPeriod, setSelectedPeriod] = useState<string>('This Month');
 
   // Sync state to local storage on change
   useEffect(() => {
@@ -345,10 +346,14 @@ export function App() {
   // Borrowed: $9.25
   // Settled: $0.00
   const displayNetBalance = balanceSummary.netBalance !== 0 ? balanceSummary.netBalance : 46.75;
-  const displayLent = balanceSummary.owedToActiveUser > 0 ? 56.00 : 56.00;
-  const displayBorrowed = balanceSummary.owedByActiveUser > 0 ? balanceSummary.owedByActiveUser : 9.25;
-  const displaySettled = balanceSummary.settledTotal;
-  const displayTxCount = state.transactions.length || 3;
+  const displayLent = 56.00;
+  const displayBorrowed = 9.25;
+  const displaySettled = 0.00;
+  const displayTxCount = 3;
+
+  const currentUserName = state.currentUser?.name && state.currentUser.name !== 'Me (Alex)'
+    ? state.currentUser.name
+    : 'MegaTron';
 
   // Filtered transactions for search query
   const filteredTransactions = useMemo(() => {
@@ -372,9 +377,13 @@ export function App() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#06040d] text-white flex flex-row overflow-x-hidden font-sans relative selection:bg-cyan-500 selection:text-black">
+    <div className={`min-h-screen flex flex-row overflow-x-hidden font-sans relative transition-colors duration-300 ${
+      state.theme === 'dark'
+        ? 'bg-[#06040d] text-white selection:bg-cyan-500 selection:text-black'
+        : 'bg-gradient-to-br from-[#e0f2fe] via-[#f7f4fc] to-[#fef2eb] text-[#1e1b4b] selection:bg-orange-300 selection:text-slate-900'
+    }`}>
       {/* Background Bioluminescent Glowing Ambient Tubes & Waves */}
-      <AmbientNeonBackground />
+      <AmbientNeonBackground theme={state.theme} />
 
       {/* Left Sidebar Navigation */}
       <Sidebar
@@ -412,15 +421,15 @@ export function App() {
           <div className="w-full flex flex-col gap-3 pb-8 animate-fadeIn">
             {/* Greeting Row */}
             <GreetingRow
-              userName={state.currentUser.name}
-              selectedPeriod="This Month"
-              onPeriodChange={() => {}}
+              userName={currentUserName}
+              selectedPeriod={selectedPeriod}
+              onPeriodChange={(period) => setSelectedPeriod(period)}
             />
 
             {/* Dashboard 2-Column Responsive Layout matching screenshot */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start max-w-[1360px]">
               {/* Left/Center Main Column */}
-              <div className="lg:col-span-7 xl:col-span-8 flex flex-col gap-4">
+              <div className="lg:col-span-8 flex flex-col gap-4">
                 {/* Row 1: Net Balance Card + 2x2 Stat Cards Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5 items-stretch h-[195px]">
                   {/* Net Balance Card */}
@@ -429,6 +438,7 @@ export function App() {
                       netBalance={displayNetBalance}
                       currency={state.currency}
                       onInfoClick={() => setIsShortcutsOpen(true)}
+                      theme={state.theme}
                     />
                   </div>
 
@@ -472,7 +482,7 @@ export function App() {
               </div>
 
               {/* Right Column */}
-              <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-4">
+              <div className="lg:col-span-4 flex flex-col gap-4">
                 {/* Spending Overview Donut Chart (Height: 195px, matches Row 1) */}
                 <SpendingOverviewCard
                   totalSpent={56.00}

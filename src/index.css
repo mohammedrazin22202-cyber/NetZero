@@ -4,9 +4,18 @@
 
 @layer base {
   body {
-    @apply antialiased text-white bg-[#06040d];
+    @apply antialiased transition-colors duration-300;
     font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
     overflow-x: hidden;
+  }
+  
+  html.dark body {
+    @apply text-white bg-[#06040d];
+  }
+  
+  html:not(.dark) body {
+    background: linear-gradient(135deg, #e0f2fe 0%, #f7f4fc 50%, #fef2eb 100%) !important;
+    color: #1e1b4b !important;
   }
 }
 
@@ -19,48 +28,55 @@
   scrollbar-width: none;
 }
 
-/* Neon Glass Card Styles matching exact screenshot glow */
+/* =========================================================================
+   DARK THEME: Deep Neon Glass
+   ========================================================================= */
+
 .neon-glass-card {
   position: relative;
-  background: rgba(18, 12, 32, 0.85);
+  background: rgba(18, 12, 32, 0.88);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border: 1.5px solid rgba(168, 85, 247, 0.38);
-  box-shadow: 0 0 25px rgba(168, 85, 247, 0.14), inset 0 1px 1px rgba(255, 255, 255, 0.1);
+  border: 1.5px solid rgba(168, 85, 247, 0.35);
+  box-shadow: 0 0 25px rgba(168, 85, 247, 0.12), inset 0 1px 1px rgba(255, 255, 255, 0.08);
+  transition: all 0.3s ease;
 }
 
 .neon-glass-card:hover {
-  border-color: rgba(168, 85, 247, 0.6);
-  box-shadow: 0 0 35px rgba(168, 85, 247, 0.25), inset 0 1px 2px rgba(255, 255, 255, 0.16);
+  border-color: rgba(168, 85, 247, 0.55);
+  box-shadow: 0 0 35px rgba(168, 85, 247, 0.22), inset 0 1px 2px rgba(255, 255, 255, 0.14);
 }
 
-/* Spending Overview & This Month card cyan glow corner */
-.neon-card-cyan-corner {
+.neon-hero-card {
   position: relative;
+  background: linear-gradient(135deg, rgba(20, 13, 38, 0.94) 0%, rgba(13, 8, 25, 0.96) 100%);
+  backdrop-filter: blur(24px);
+  border-radius: 1.75rem;
+  border: 1.5px solid transparent;
+  background-clip: padding-box;
+  box-shadow: 0 0 30px rgba(0, 240, 255, 0.18), 0 0 20px rgba(168, 85, 247, 0.16), inset 0 1px 1px rgba(255, 255, 255, 0.15);
+  transition: all 0.3s ease;
 }
-.neon-card-cyan-corner::after {
+
+.neon-hero-card::before {
   content: '';
   position: absolute;
-  bottom: -1px;
-  right: -1px;
-  width: 95px;
-  height: 55px;
-  border-bottom-right-radius: 1.5rem;
-  border-bottom: 2px solid #00f0ff;
-  border-right: 2px solid #00f0ff;
-  box-shadow: 0 0 20px rgba(0, 240, 255, 0.7);
+  inset: -1.5px;
+  border-radius: 1.75rem;
+  padding: 1.5px;
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.9) 0%, rgba(139, 92, 246, 0.4) 45%, rgba(0, 240, 255, 0.95) 100%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
   pointer-events: none;
-  opacity: 0.9;
 }
 
-/* Sidebar Active Pill */
 .nav-pill-active {
   background: rgba(30, 16, 52, 0.95);
   border: 1.5px solid rgba(192, 132, 252, 0.95);
   box-shadow: 0 0 26px rgba(168, 85, 247, 0.65), inset 0 0 14px rgba(168, 85, 247, 0.3);
 }
 
-/* Neon buttons */
 .btn-neon-cyan {
   background: #00f0ff;
   color: #07050e;
@@ -94,12 +110,173 @@
   transform: scale(0.97);
 }
 
-/* Text glow utilities */
 .glow-text-cyan {
   text-shadow: 0 0 25px rgba(0, 240, 255, 0.6), 0 0 10px rgba(0, 240, 255, 0.35);
 }
 .glow-text-purple {
   text-shadow: 0 0 25px rgba(168, 85, 247, 0.6), 0 0 10px rgba(168, 85, 247, 0.35);
+}
+
+
+/* =========================================================================
+   LIGHT THEME: Powder Blue, Soft Lavender White & Warm Sunset Peach
+   ========================================================================= */
+
+/* 1. Frosted Soft Lavender White Cards with Powder Blue & Peach Glow */
+html:not(.dark) .neon-glass-card {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border-color: rgba(192, 132, 252, 0.28) !important;
+  box-shadow: 0 10px 30px rgba(56, 189, 248, 0.12), 0 4px 18px rgba(251, 146, 60, 0.1), 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+}
+
+html:not(.dark) .neon-glass-card:hover {
+  border-color: rgba(168, 85, 247, 0.5) !important;
+  box-shadow: 0 14px 38px rgba(56, 189, 248, 0.18), 0 6px 24px rgba(251, 146, 60, 0.16) !important;
+}
+
+/* 2. Hero Card with Sunset Peach, Lavender & Powder Blue Gradient Border */
+html:not(.dark) .neon-hero-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 245, 255, 0.94) 50%, rgba(255, 247, 242, 0.95) 100%) !important;
+  box-shadow: 0 14px 36px rgba(56, 189, 248, 0.2), 0 6px 24px rgba(251, 146, 60, 0.18), inset 0 1px 1px rgba(255, 255, 255, 0.8) !important;
+}
+
+html:not(.dark) .neon-hero-card::before {
+  background: linear-gradient(135deg, #fb923c 0%, #c084fc 50%, #38bdf8 100%) !important;
+}
+
+/* 3. Sidebar in Soft Lavender White */
+html:not(.dark) aside {
+  background: rgba(255, 255, 255, 0.78) !important;
+  backdrop-filter: blur(24px) !important;
+  border-right: 1px solid rgba(192, 132, 252, 0.18) !important;
+}
+
+html:not(.dark) .nav-pill-active {
+  background: linear-gradient(135deg, rgba(238, 242, 255, 0.95) 0%, rgba(255, 247, 237, 0.95) 100%) !important;
+  border-color: rgba(192, 132, 252, 0.7) !important;
+  box-shadow: 0 4px 20px rgba(192, 132, 252, 0.28) !important;
+  color: #1e1b4b !important;
+}
+
+/* 4. Action Buttons in Sunset Peach & Powder Blue */
+html:not(.dark) .btn-neon-cyan {
+  background: linear-gradient(135deg, #fb923c 0%, #f97316 100%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 24px rgba(251, 146, 60, 0.5) !important;
+}
+html:not(.dark) .btn-neon-cyan:hover {
+  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%) !important;
+  box-shadow: 0 0 32px rgba(251, 146, 60, 0.7) !important;
+}
+
+html:not(.dark) .btn-glass-action {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-color: rgba(192, 132, 252, 0.28) !important;
+  color: #1e1b4b !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+}
+html:not(.dark) .btn-glass-action:hover {
+  background: #ffffff !important;
+  border-color: #fb923c !important;
+  box-shadow: 0 4px 16px rgba(251, 146, 60, 0.22) !important;
+}
+
+/* 5. Glowing Powder Blue Accent on Metrics */
+html:not(.dark) .glow-text-cyan {
+  color: #0284c7 !important;
+  text-shadow: 0 0 18px rgba(56, 189, 248, 0.45) !important;
+}
+
+/* 6. Typography: High-contrast Twilight Indigo & Muted Slate */
+html:not(.dark) .text-white {
+  color: #1e1b4b !important;
+}
+
+html:not(.dark) .btn-neon-cyan,
+html:not(.dark) .btn-neon-cyan * {
+  color: #ffffff !important;
+}
+
+html:not(.dark) .text-slate-400 {
+  color: #64748b !important;
+}
+
+html:not(.dark) .text-slate-300 {
+  color: #334155 !important;
+}
+
+html:not(.dark) .text-slate-200 {
+  color: #1e293b !important;
+}
+
+html:not(.dark) .text-cyan-400 {
+  color: #0284c7 !important;
+}
+
+/* 7. Inputs & Form Elements */
+html:not(.dark) input,
+html:not(.dark) textarea,
+html:not(.dark) select {
+  background-color: #ffffff !important;
+  color: #1e1b4b !important;
+  border-color: rgba(192, 132, 252, 0.35) !important;
+}
+
+html:not(.dark) input:focus {
+  border-color: #38bdf8 !important;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.3) !important;
+}
+
+html:not(.dark) input::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* 8. Global Catch for Dark Hex & Utility Backgrounds in Light Mode */
+html:not(.dark) [class*="bg-purple-950"],
+html:not(.dark) [class*="bg-cyan-950"],
+html:not(.dark) [class*="bg-slate-950"],
+html:not(.dark) [class*="bg-[#0"],
+html:not(.dark) [class*="bg-[#1"],
+html:not(.dark) [class*="bg-[#2"] {
+  background-color: rgba(255, 255, 255, 0.95);
+  border-color: rgba(192, 132, 252, 0.28);
+}
+
+/* 9. Preserve Light / Transparent Badges */
+html:not(.dark) .bg-\[\#fff4ed\] {
+  background-color: #fff4ed !important;
+}
+html:not(.dark) .bg-\[\#f5efff\] {
+  background-color: #f5efff !important;
+}
+html:not(.dark) .bg-\[\#e0f2fe\] {
+  background-color: #e0f2fe !important;
+}
+html:not(.dark) .bg-\[\#faf8ff\] {
+  background-color: #faf8ff !important;
+}
+
+/* 10. Preserved White Text on Vibrant Gradients */
+html:not(.dark) .avatar-text-white,
+html:not(.dark) [class*="bg-gradient-to-tr"] .text-white,
+html:not(.dark) [class*="from-purple-700"] {
+  color: #ffffff !important;
+}
+
+/* 11. SVG Stop Colors for 3D Neon Glass Wallet in Light Mode */
+html:not(.dark) stop[stop-color="#190d2e"],
+html:not(.dark) stop[stop-color="#120824"],
+html:not(.dark) stop[stop-color="#1e1038"],
+html:not(.dark) stop[stop-color="#140a26"],
+html:not(.dark) stop[stop-color="#2c174f"],
+html:not(.dark) stop[stop-color="#20103c"],
+html:not(.dark) stop[stop-color="#200e3a"] {
+  stop-color: #f7f4fc !important;
+}
+
+/* 12. Ambient Glow Opacity in Light Mode */
+html:not(.dark) .ambient-neon-bg {
+  opacity: 0.85 !important;
 }
 
 /* Animations */

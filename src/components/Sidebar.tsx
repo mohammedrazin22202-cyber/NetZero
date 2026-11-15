@@ -41,22 +41,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <svg 
               viewBox="0 0 46 46" 
               fill="none" 
-              className="w-10 h-10 drop-shadow-[0_0_14px_rgba(0,240,255,0.75)]"
+              className="w-10 h-10 drop-shadow-[0_0_14px_rgba(56,189,248,0.5)] dark:drop-shadow-[0_0_14px_rgba(0,240,255,0.75)]"
               xmlns="http://www.w3.org/2000/svg"
             >
               <defs>
                 <linearGradient id="ribbonLeftLimb" x1="0%" y1="100%" x2="0%" y2="0%">
-                  <stop offset="0%" stopColor="#00f0ff" />
-                  <stop offset="100%" stopColor="#38bdf8" />
+                  <stop offset="0%" stopColor="#38bdf8" />
+                  <stop offset="100%" stopColor="#0284c7" />
                 </linearGradient>
                 <linearGradient id="ribbonDiagonal" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#00f0ff" />
+                  <stop offset="0%" stopColor="#38bdf8" />
                   <stop offset="45%" stopColor="#c084fc" />
-                  <stop offset="100%" stopColor="#a855f7" />
+                  <stop offset="100%" stopColor="#fb923c" />
                 </linearGradient>
                 <linearGradient id="ribbonRightLimb" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stopColor="#e879f9" />
-                  <stop offset="100%" stopColor="#a855f7" />
+                  <stop offset="0%" stopColor="#fb923c" />
+                  <stop offset="100%" stopColor="#ea580c" />
                 </linearGradient>
               </defs>
               {/* Left upright limb */}
@@ -78,10 +78,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
 
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-white leading-none">
+            <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white leading-none">
               NetZero
             </h1>
-            <p className="text-[10px] font-medium text-slate-400 mt-1 tracking-wider">
+            <p className="text-[10px] font-medium text-purple-700/70 dark:text-slate-400 mt-1 tracking-wider">
               Split • Track • Settle
             </p>
           </div>
@@ -94,11 +94,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
             onClick={() => onSelectNav('dashboard')}
             className={`w-full flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-sm font-semibold transition-all duration-200 ${
               activeNav === 'dashboard'
-                ? 'nav-pill-active text-white'
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                ? 'nav-pill-active text-purple-950 dark:text-white'
+                : 'text-purple-700/80 dark:text-slate-400 hover:text-purple-950 dark:hover:text-white hover:bg-purple-100/50 dark:hover:bg-white/5'
             }`}
           >
-            <Home className="w-5 h-5 stroke-[2] text-white" />
+            <Home className="w-5 h-5 stroke-[2] text-[#0284c7] dark:text-white" />
             <span>Dashboard</span>
           </button>
 
@@ -107,8 +107,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             onClick={() => onSelectNav('friends')}
             className={`w-full flex items-center gap-3.5 px-4 py-2 rounded-2xl text-sm font-medium transition-all duration-200 ${
               activeNav === 'friends'
-                ? 'nav-pill-active text-white'
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                ? 'nav-pill-active text-purple-950 dark:text-white'
+                : 'text-purple-700/80 dark:text-slate-400 hover:text-purple-950 dark:hover:text-white hover:bg-purple-100/50 dark:hover:bg-white/5'
             }`}
           >
             <Users className="w-5 h-5 stroke-[1.8]" />
@@ -120,8 +120,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             onClick={() => onSelectNav('transactions')}
             className={`w-full flex items-center gap-3.5 px-4 py-2 rounded-2xl text-sm font-medium transition-all duration-200 ${
               activeNav === 'transactions'
-                ? 'nav-pill-active text-white'
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                ? 'nav-pill-active text-purple-950 dark:text-white'
+                : 'text-purple-700/80 dark:text-slate-400 hover:text-purple-950 dark:hover:text-white hover:bg-purple-100/50 dark:hover:bg-white/5'
             }`}
           >
             <ArrowLeftRight className="w-5 h-5 stroke-[1.8]" />
@@ -133,8 +133,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             onClick={() => onSelectNav('analytics')}
             className={`w-full flex items-center gap-3.5 px-4 py-2 rounded-2xl text-sm font-medium transition-all duration-200 ${
               activeNav === 'analytics'
-                ? 'nav-pill-active text-white'
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                ? 'nav-pill-active text-purple-950 dark:text-white'
+                : 'text-purple-700/80 dark:text-slate-400 hover:text-purple-950 dark:hover:text-white hover:bg-purple-100/50 dark:hover:bg-white/5'
             }`}
           >
             <BarChart3 className="w-5 h-5 stroke-[1.8]" />
@@ -146,8 +146,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             onClick={() => onSelectNav('settlements')}
             className={`w-full flex items-center gap-3.5 px-4 py-2 rounded-2xl text-sm font-medium transition-all duration-200 ${
               activeNav === 'settlements'
-                ? 'nav-pill-active text-white'
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                ? 'nav-pill-active text-purple-950 dark:text-white'
+                : 'text-purple-700/80 dark:text-slate-400 hover:text-purple-950 dark:hover:text-white hover:bg-purple-100/50 dark:hover:bg-white/5'
             }`}
           >
             <CheckCircle2 className="w-5 h-5 stroke-[1.8]" />
@@ -162,8 +162,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             onClick={() => onSelectNav('categories')}
             className={`w-full flex items-center gap-3.5 px-4 py-2 rounded-2xl text-sm font-medium transition-all duration-200 ${
               activeNav === 'categories'
-                ? 'nav-pill-active text-white'
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                ? 'nav-pill-active text-purple-950 dark:text-white'
+                : 'text-purple-700/80 dark:text-slate-400 hover:text-purple-950 dark:hover:text-white hover:bg-purple-100/50 dark:hover:bg-white/5'
             }`}
           >
             <Tag className="w-5 h-5 stroke-[1.8]" />
@@ -175,8 +175,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             onClick={() => onSelectNav('settings')}
             className={`w-full flex items-center gap-3.5 px-4 py-2 rounded-2xl text-sm font-medium transition-all duration-200 ${
               activeNav === 'settings'
-                ? 'nav-pill-active text-white'
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                ? 'nav-pill-active text-purple-950 dark:text-white'
+                : 'text-purple-700/80 dark:text-slate-400 hover:text-purple-950 dark:hover:text-white hover:bg-purple-100/50 dark:hover:bg-white/5'
             }`}
           >
             <Settings className="w-5 h-5 stroke-[1.8]" />
@@ -186,16 +186,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* NetZero Pro Card at bottom of sidebar */}
-      <div className="rounded-3xl p-4 bg-[#140d25]/90 border border-purple-500/30 shadow-[0_0_20px_rgba(168,85,247,0.15)] flex flex-col gap-3">
+      <div className="rounded-3xl p-4 bg-gradient-to-br from-[#faf8ff] to-[#fff7ed] dark:bg-[#140d25]/90 border border-[#fed7aa] dark:border-purple-500/30 shadow-[0_4px_16px_rgba(251,146,60,0.12)] dark:shadow-[0_0_20px_rgba(168,85,247,0.15)] flex flex-col gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-2xl bg-purple-950/80 border border-purple-500/40 flex items-center justify-center text-purple-400 shadow-[0_0_14px_rgba(168,85,247,0.5)] shrink-0">
-            <Crown className="w-5 h-5 stroke-[2] fill-purple-400/25" />
+          <div className="w-9 h-9 rounded-2xl bg-[#fff4ed] dark:bg-purple-950/80 border border-[#fed7aa] dark:border-purple-500/40 flex items-center justify-center text-[#ea580c] dark:text-purple-400 shadow-[0_0_12px_rgba(251,146,60,0.25)] dark:shadow-[0_0_14px_rgba(168,85,247,0.5)] shrink-0">
+            <Crown className="w-5 h-5 stroke-[2] fill-[#fed7aa] dark:fill-purple-400/25" />
           </div>
           <div>
-            <h4 className="text-sm font-bold text-white leading-tight">
+            <h4 className="text-sm font-bold text-slate-900 dark:text-white leading-tight">
               NetZero Pro
             </h4>
-            <p className="text-[10px] text-slate-400 mt-0.5">
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
               Backups • Insights • More
             </p>
           </div>

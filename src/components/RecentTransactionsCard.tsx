@@ -28,36 +28,36 @@ export const RecentTransactionsCard: React.FC<RecentTransactionsCardProps> = ({
     if (t.includes('dinner') || t.includes('food') || c === 'food') {
       return {
         icon: <Utensils className="w-4 h-4 stroke-[2.2]" />,
-        bg: 'bg-[#0a232e]/90 border border-teal-500/50 text-teal-400 shadow-[0_0_10px_rgba(20,184,166,0.3)]',
+        bg: 'bg-[#fff4ed] dark:bg-[#0a232e]/90 border border-[#fed7aa] dark:border-teal-500/50 text-[#ea580c] dark:text-teal-400 shadow-[0_0_10px_rgba(251,146,60,0.25)] dark:shadow-[0_0_10px_rgba(20,184,166,0.3)]',
       };
     }
     if (t.includes('movie') || t.includes('ticket') || c === 'entertainment') {
       return {
         icon: <Clapperboard className="w-4 h-4 stroke-[2.2]" />,
-        bg: 'bg-[#251042]/90 border border-purple-500/50 text-purple-400 shadow-[0_0_10px_rgba(168,85,247,0.3)]',
+        bg: 'bg-[#f5efff] dark:bg-[#251042]/90 border border-[#d8b4fe] dark:border-purple-500/50 text-[#9333ea] dark:text-purple-400 shadow-[0_0_10px_rgba(192,132,252,0.25)] dark:shadow-[0_0_10px_rgba(168,85,247,0.3)]',
       };
     }
     if (t.includes('cab') || t.includes('uber') || t.includes('ride') || c === 'transport') {
       return {
         icon: <Car className="w-4 h-4 stroke-[2.2]" />,
-        bg: 'bg-[#0a232e]/90 border border-teal-500/50 text-teal-400 shadow-[0_0_10px_rgba(20,184,166,0.3)]',
+        bg: 'bg-[#e0f2fe] dark:bg-[#0a232e]/90 border border-[#7dd3fc] dark:border-teal-500/50 text-[#0284c7] dark:text-teal-400 shadow-[0_0_10px_rgba(56,189,248,0.25)] dark:shadow-[0_0_10px_rgba(20,184,166,0.3)]',
       };
     }
     if (c === 'drinks' || t.includes('coffee')) {
       return {
         icon: <Coffee className="w-4 h-4 stroke-[2.2]" />,
-        bg: 'bg-[#2b1704]/90 border border-amber-500/50 text-amber-400',
+        bg: 'bg-[#fff7ed] dark:bg-[#2b1704]/90 border border-[#fdba74] dark:border-amber-500/50 text-[#ea580c] dark:text-amber-400',
       };
     }
     if (c === 'shopping') {
       return {
         icon: <ShoppingBag className="w-4 h-4 stroke-[2.2]" />,
-        bg: 'bg-[#2e0921]/90 border border-pink-500/50 text-pink-400',
+        bg: 'bg-[#fdf2f8] dark:bg-[#2e0921]/90 border border-[#f472b6] dark:border-pink-500/50 text-[#db2777] dark:text-pink-400',
       };
     }
     return {
       icon: <Receipt className="w-4 h-4 stroke-[2.2]" />,
-      bg: 'bg-[#251042]/90 border border-purple-500/50 text-purple-400',
+      bg: 'bg-[#f5efff] dark:bg-[#251042]/90 border border-[#d8b4fe] dark:border-purple-500/50 text-[#9333ea] dark:text-purple-400',
     };
   };
 
@@ -82,19 +82,19 @@ export const RecentTransactionsCard: React.FC<RecentTransactionsCardProps> = ({
       {/* Header */}
       <div>
         <div className="flex items-center justify-between pb-3">
-          <h3 className="text-base font-semibold text-white">
+          <h3 className="text-base font-semibold text-slate-900 dark:text-white">
             Recent Transactions
           </h3>
           <button
             onClick={onViewAll}
-            className="text-xs sm:text-sm font-semibold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition-colors"
+            className="text-xs sm:text-sm font-semibold text-[#0284c7] dark:text-cyan-400 hover:opacity-80 flex items-center gap-1 transition-opacity"
           >
             <span>View All</span>
             <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
           </button>
         </div>
         {/* Subtle Hairline Horizontal Divider */}
-        <div className="w-full h-px bg-purple-500/20 mb-2" />
+        <div className="w-full h-px bg-purple-200/50 dark:bg-purple-500/20 mb-2" />
       </div>
 
       {/* Transactions List */}
@@ -114,7 +114,7 @@ export const RecentTransactionsCard: React.FC<RecentTransactionsCardProps> = ({
               <div
                 key={tx.id}
                 onClick={() => onSelectTransaction?.(tx)}
-                className="py-1 px-2 flex items-center justify-between gap-3 group cursor-pointer hover:bg-white/[0.03] rounded-2xl transition-colors"
+                className="py-1 px-2 flex items-center justify-between gap-3 group cursor-pointer hover:bg-purple-50/60 dark:hover:bg-white/[0.03] rounded-2xl transition-colors"
               >
                 {/* Left: Icon & Details */}
                 <div className="flex items-center gap-3.5 min-w-0">
@@ -123,10 +123,10 @@ export const RecentTransactionsCard: React.FC<RecentTransactionsCardProps> = ({
                   </div>
 
                   <div className="flex flex-col min-w-0">
-                    <span className="text-sm font-bold text-white truncate group-hover:text-cyan-300 transition-colors">
+                    <span className="text-sm font-bold text-slate-900 dark:text-white truncate group-hover:text-[#0284c7] dark:group-hover:text-cyan-300 transition-colors">
                       {tx.title}
                     </span>
-                    <span className="text-xs text-slate-400 truncate">
+                    <span className="text-xs text-slate-500 dark:text-slate-400 truncate">
                       {isUserPayer ? `You paid  •  with ${friendName}` : `${friendName} paid  •  for you`}
                     </span>
                   </div>
@@ -134,12 +134,12 @@ export const RecentTransactionsCard: React.FC<RecentTransactionsCardProps> = ({
 
                 {/* Right: Date & Amount */}
                 <div className="flex items-center gap-6 shrink-0">
-                  <span className="text-xs text-slate-400 min-w-[45px] text-right">
+                  <span className="text-xs text-slate-500 dark:text-slate-400 min-w-[45px] text-right">
                     {dateLabel}
                   </span>
 
                   <span className={`text-base font-bold min-w-[70px] text-right ${
-                    isUserPayer ? 'text-cyan-400' : 'text-[#e879f9]'
+                    isUserPayer ? 'text-[#0284c7] dark:text-cyan-400' : 'text-[#ea580c] dark:text-[#e879f9]'
                   }`}>
                     {currency.symbol}{tx.amount.toFixed(2)}
                   </span>
