@@ -1,6 +1,6 @@
 # ⚡ NetZero
 
-> A futuristic, zero-friction expense splitter and financial balancer with bioluminescent neon glassmorphic design. Split, track, and balance shared expenses down to net zero!
+> A futuristic, zero-friction expense splitter and financial balancer with bioluminescent neon glassmorphic design and dreamy pastel aesthetics. Split, track, and balance shared expenses down to net zero!
 
 ![NetZero Dashboard Preview](public/preview.png)
 
@@ -10,14 +10,13 @@ Never let forgotten loans or awkward *"hey, did you ever pay me back for that?"*
 
 ## ✨ Features
 
-- **🎯 Futuristic Neon Glassmorphic UI**:
-  - Deep midnight canvas with ambient bioluminescent 3D neon glass ribbons and fluid glowing wave contours.
-  - Isometric 3D glowing glass wallet artwork with ambient purple/cyan specular highlights.
-  - Claymorphic action buttons with tactile beveling and intense cyan bloom.
+- **🎨 Dual-Theme Design System**:
+  - **Deep Neon Mode**: Midnight canvas with ambient bioluminescent 3D neon glass ribbons, fluid glowing wave contours, and vibrant cyan & purple bloom.
+  - **Pastel Light Mode**: A soft, cohesive palette blending **powder blue**, **soft lavender white**, and **warm sunset peach** across frosted glass surfaces, glow accents, and isometric illustrations.
 - **📊 Real-Time Financial Overview**:
-  - **Net Balance Hero Card**: Clear indication of balance in your favor or owed, with quick insight tooltips.
+  - **Net Balance Hero Card**: Clear indication of balance in your favor or owed, with an isometric 3D glowing glass wallet artwork and glowing wave contours.
   - **2×2 Quick Metrics**: Real-time totals for *You Lent*, *Settled*, *You Borrowed*, and *Total Transactions*.
-  - **Spending Overview Donut Chart**: High-contrast neon donut breakdown across Food & Dining, Entertainment, and Transport.
+  - **Spending Overview Donut Chart**: High-contrast donut breakdown across Food & Dining, Entertainment, and Transport with total spent metrics.
   - **Monthly Comparison Bar Chart**: Dual 3D glass pill bars comparing current vs. previous month spending with percentage delta badges.
 - **⚡ 1-Tap Quick Actions**:
   - `⊕ Add Expense`: Custom or itemized expense logging with instant share calculation.
@@ -25,6 +24,8 @@ Never let forgotten loans or awkward *"hey, did you ever pay me back for that?"*
   - `✓ Record Payment`: Record offline or cash transfers.
   - `⇄ Settle Up`: One-tap balance clearing and instant WhatsApp ping generation.
   - `🎚 Custom Split`: Percentage or itemized split per friend.
+- **📅 Interactive Timeframe Filter**:
+  - Filter and inspect metrics across *This Month*, *Last Month*, *Last 30 Days*, *This Year*, or *All Time* directly from the header dropdown.
 - **👥 Multi-Friend Ledger**:
   - Switch ledgers seamlessly between friends.
   - Add new friends with custom payment IDs (UPI, PayPal, Venmo).
