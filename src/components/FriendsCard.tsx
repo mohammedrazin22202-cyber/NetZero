@@ -16,16 +16,18 @@ interface FriendsCardProps {
 export const FriendsCard: React.FC<FriendsCardProps> = ({
   friend,
   friendCount = 1,
-  transactionCount = 3,
-  netBalance = 46.75,
+  transactionCount = 0,
+  netBalance = 0,
   currency,
   onViewAll,
   onSelectFriend,
   onAddFriend,
 }) => {
-  const isOwed = netBalance >= 0;
-  const balancePrefix = isOwed ? '+' : '-';
+  const isZero = Math.abs(netBalance) < 0.005;
+  const isOwed = netBalance > 0.005;
+  const balancePrefix = isZero ? '' : isOwed ? '+' : '-';
   const balanceText = `${balancePrefix}${currency.symbol}${Math.abs(netBalance).toFixed(2)}`;
+  const statusText = isZero ? 'Settled up' : isOwed ? 'Owes you' : 'You owe';
 
   return (
     <div className="neon-glass-card rounded-3xl p-5 select-none flex flex-col justify-between h-[215px]">
@@ -68,12 +70,16 @@ export const FriendsCard: React.FC<FriendsCardProps> = ({
         <div className="flex items-center gap-2 shrink-0">
           <div className="flex flex-col items-end">
             <span className={`text-base font-bold tracking-tight ${
-              isOwed ? 'text-[#0284c7] dark:text-cyan-400' : 'text-[#ea580c] dark:text-[#e879f9]'
+              isZero
+                ? 'text-emerald-600 dark:text-emerald-400'
+                : isOwed
+                ? 'text-[#0284c7] dark:text-cyan-400'
+                : 'text-[#ea580c] dark:text-[#e879f9]'
             }`}>
               {balanceText}
             </span>
             <span className="text-[11px] text-slate-500 dark:text-slate-400">
-              {isOwed ? 'Owes you' : 'You owe'}
+              {statusText}
             </span>
           </div>
           <ChevronRight className="w-4 h-4 text-slate-400 dark:text-slate-500 group-hover:text-slate-900 dark:group-hover:text-white transition-colors" />

@@ -102,30 +102,36 @@ export const SpendingOverviewCard: React.FC<SpendingOverviewCardProps> = ({
         </div>
 
         {/* Right: Legend with bullet dots & percentages */}
-        <div className="flex flex-col gap-3 flex-1 min-w-0 pr-2">
-          {categories.map((cat, idx) => (
-            <div
-              key={idx}
-              onClick={() => onCategoryClick?.(cat.name)}
-              className="flex items-center justify-between gap-3 text-xs cursor-pointer hover:opacity-90 group"
-            >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <span
-                  className="w-2.5 h-2.5 rounded-full shrink-0"
-                  style={{
-                    backgroundColor: cat.color,
-                    boxShadow: `0 0 10px ${cat.glowColor}`,
-                  }}
-                />
-                <span className="text-slate-700 dark:text-slate-300 font-medium truncate group-hover:text-purple-900 dark:group-hover:text-white transition-colors text-xs">
-                  {cat.name}
+        <div className="flex flex-col gap-2.5 flex-1 min-w-0 pr-2">
+          {categories.length === 0 ? (
+            <div className="text-xs text-slate-500 dark:text-slate-400 italic py-2">
+              No expenses recorded yet.
+            </div>
+          ) : (
+            categories.map((cat, idx) => (
+              <div
+                key={idx}
+                onClick={() => onCategoryClick?.(cat.name)}
+                className="flex items-center justify-between gap-3 text-xs cursor-pointer hover:opacity-90 group"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span
+                    className="w-2.5 h-2.5 rounded-full shrink-0"
+                    style={{
+                      backgroundColor: cat.color,
+                      boxShadow: `0 0 10px ${cat.glowColor}`,
+                    }}
+                  />
+                  <span className="text-slate-700 dark:text-slate-300 font-medium truncate group-hover:text-purple-900 dark:group-hover:text-white transition-colors text-xs">
+                    {cat.name}
+                  </span>
+                </div>
+                <span className="text-slate-900 dark:text-slate-300 font-semibold shrink-0 text-xs">
+                  {cat.percentage}%
                 </span>
               </div>
-              <span className="text-slate-900 dark:text-slate-300 font-semibold shrink-0 text-xs">
-                {cat.percentage}%
-              </span>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
     </div>

@@ -1,21 +1,24 @@
 import React from 'react';
-import { Info, ArrowUpRight } from 'lucide-react';
+import { Info, ArrowUpRight, ArrowDownRight, Share2, Check } from 'lucide-react';
 import { Currency } from '../types';
 
 interface NetBalanceHeroProps {
   netBalance: number;
   currency: Currency;
   onInfoClick?: () => void;
+  onShareClick?: () => void;
   theme?: 'dark' | 'light';
 }
 
 export const NetBalanceHero: React.FC<NetBalanceHeroProps> = ({
-  netBalance = 46.75,
+  netBalance = 0,
   currency,
   onInfoClick,
+  onShareClick,
   theme = 'dark',
 }) => {
-  const isPositive = netBalance >= 0;
+  const isZero = Math.abs(netBalance) < 0.005;
+  const isPositive = netBalance > 0.005;
   const isLight = theme === 'light';
   const formattedAmount = `${currency.symbol}${Math.abs(netBalance).toFixed(2)}`;
 
@@ -79,16 +82,27 @@ export const NetBalanceHero: React.FC<NetBalanceHeroProps> = ({
         {/* Left Side: Label, Big Amount, Status Pill */}
         <div className="flex flex-col justify-between h-full">
           <div>
-            {/* Label + Info icon */}
-            <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300 text-xs sm:text-sm font-medium">
+            {/* Label + Info icon + Share icon */}
+            <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300 text-xs sm:text-sm font-medium">
               <span>Net Balance</span>
               <button
+                type="button"
                 onClick={onInfoClick}
                 title="Balance calculation details"
-                className="hover:text-purple-600 dark:hover:text-white transition-colors"
+                className="p-0.5 rounded-md hover:text-[#0284c7] dark:hover:text-cyan-400 hover:bg-slate-200/50 dark:hover:bg-white/10 transition-colors"
               >
-                <Info className="w-3.5 h-3.5 stroke-[2] text-slate-400 hover:text-purple-600 dark:hover:text-white" />
+                <Info className="w-3.5 h-3.5 stroke-[2] text-slate-400 hover:text-[#0284c7] dark:hover:text-cyan-400" />
               </button>
+              {onShareClick && (
+                <button
+                  type="button"
+                  onClick={onShareClick}
+                  title="Share balance via WhatsApp or copy summary"
+                  className="p-0.5 rounded-md hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-colors"
+                >
+                  <Share2 className="w-3.5 h-3.5 stroke-[2] text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400" />
+                </button>
+              )}
             </div>
 
             {/* Glowing Amount */}
@@ -97,12 +111,38 @@ export const NetBalanceHero: React.FC<NetBalanceHeroProps> = ({
             </div>
           </div>
 
-          {/* Status Badge Pill: [ ↗ In your favour ] */}
-          <div className="flex items-center">
+          {/* Status Badge Pill */}
+          <div className="flex items-center gap-2">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#fff4ed] dark:bg-[#20103c]/90 border border-[#fed7aa] dark:border-purple-500/50 text-[#ea580c] dark:text-purple-300 text-xs font-semibold shadow-[0_0_12px_rgba(251,146,60,0.25)] dark:shadow-[0_0_12px_rgba(168,85,247,0.3)]">
-              <ArrowUpRight className="w-3.5 h-3.5 stroke-[2.5] text-[#ea580c] dark:text-purple-400" />
-              <span>{isPositive ? 'In your favour' : 'You owe balance'}</span>
+              {isZero ? (
+                <>
+                  <Check className="w-3.5 h-3.5 stroke-[2.5] text-emerald-600 dark:text-emerald-400" />
+                  <span className="text-emerald-600 dark:text-emerald-400">All Settled Up</span>
+                </>
+              ) : isPositive ? (
+                <>
+                  <ArrowUpRight className="w-3.5 h-3.5 stroke-[2.5] text-[#0284c7] dark:text-cyan-400" />
+                  <span className="text-[#0284c7] dark:text-cyan-400">In your favour</span>
+                </>
+              ) : (
+                <>
+                  <ArrowDownRight className="w-3.5 h-3.5 stroke-[2.5] text-[#ea580c] dark:text-purple-400" />
+                  <span className="text-[#ea580c] dark:text-purple-300">You owe balance</span>
+                </>
+              )}
             </div>
+
+            {onShareClick && (
+              <button
+                type="button"
+                onClick={onShareClick}
+                className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-300 hover:bg-white/80 dark:hover:bg-white/5 transition-colors"
+                title="Send balance to friend"
+              >
+                <Share2 className="w-3 h-3" />
+                <span>Share</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -149,60 +189,37 @@ export const NetBalanceHero: React.FC<NetBalanceHeroProps> = ({
               opacity="0.95"
             />
 
-            {/* Inner Glowing Card Lip */}
+            {/* Glowing Bill Card sticking out of wallet pocket */}
             <path
-              d="M 46 21 L 101 27"
+              d="M 52 14 L 96 20 C 99 20.5 101 23 100.5 26 L 98 40 L 46 32 L 48 18 C 48.5 15.5 50 13.8 52 14 Z"
+              fill={isLight ? 'rgba(56, 189, 248, 0.45)' : 'rgba(0, 240, 255, 0.35)'}
               stroke={isLight ? '#38bdf8' : '#00f0ff'}
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              opacity="0.95"
+              strokeWidth="1.5"
             />
 
-            {/* Main Front Body (Rounded isometric pocket) */}
-            <rect
-              x="24"
-              y="32"
-              width="84"
-              height="52"
-              rx="12"
+            {/* Front Wallet Pocket & Body */}
+            <path
+              d="M 28 36 L 102 46 C 107 46.8 110 50.5 109 55 L 102 82 C 101 86 97 88.5 93 88 L 22 79 C 17 78.2 14 74.5 15 70 L 21 43 C 22 39 25 35.8 28 36 Z"
               fill="url(#walletFrontBodyGrad)"
               stroke="url(#walletMainStrokeGrad)"
-              strokeWidth="2.5"
+              strokeWidth="2.2"
             />
 
-            {/* Top Lip of Front Pocket */}
-            <path
-              d="M 30 38 L 100 38"
-              stroke={isLight ? '#38bdf8' : '#00f0ff'}
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              opacity="0.95"
-            />
-
-            {/* Front Pocket Curved Stitching/Contour */}
-            <path
-              d="M 28 50 C 50 62 82 62 104 50"
-              stroke={isLight ? '#d8b4fe' : '#c084fc'}
-              strokeWidth="1.5"
-              strokeDasharray="3 3"
-              fill="none"
-              opacity="0.8"
-            />
-
-            {/* Glowing Wallet Snap Clasp Button */}
-            <circle
-              cx="66"
-              cy="48"
-              r="4"
-              fill={isLight ? '#38bdf8' : '#00f0ff'}
-              filter="url(#neonSnapGlowExact)"
-            />
-            <circle
-              cx="66"
-              cy="48"
-              r="2"
-              fill="#ffffff"
-            />
+            {/* Wallet Clasp / Glowing Cyan Snap Button */}
+            <g filter="url(#neonSnapGlowExact)">
+              <circle
+                cx="68"
+                cy="62"
+                r="6"
+                fill={isLight ? '#38bdf8' : '#00f0ff'}
+              />
+              <circle
+                cx="68"
+                cy="62"
+                r="2.5"
+                fill="#ffffff"
+              />
+            </g>
           </svg>
         </div>
       </div>

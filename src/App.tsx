@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
-import { AppState, SplitType, Transaction, UserProfile } from './types';
+import { AppState, SplitType, Transaction, UserProfile, Category, RecurringExpense } from './types';
 import { loadAppState, saveAppState, getFreshSampleTransactions } from './utils/storage';
 import { getLocalDateString, calculateBalance } from './utils/formatters';
+import { CATEGORIES } from './utils/categories';
 import { triggerConfetti } from './utils/confetti';
 import { triggerHaptic } from './utils/haptics';
 
@@ -28,8 +29,12 @@ import { ShortcutsModal } from './components/ShortcutsModal';
 import { ProModal } from './components/ProModal';
 import { NotificationPopover } from './components/NotificationPopover';
 import { AddFriendModal } from './components/AddFriendModal';
+import { BalanceInfoModal } from './components/BalanceInfoModal';
 import { TransactionList } from './components/TransactionList';
 import { AnalyticsView } from './components/AnalyticsView';
+import { FriendsView } from './components/FriendsView';
+import { SettlementsView } from './components/SettlementsView';
+import { CategoriesView } from './components/CategoriesView';
 
 export function App() {
   const [state, setState] = useState<AppState>(loadAppState);
@@ -39,6 +44,8 @@ export function App() {
   // Modals state
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [initialSplit, setInitialSplit] = useState<SplitType>('equal_split');
+  const [addInitialMode, setAddInitialMode] = useState<'simple' | 'itemized'>('simple');
+  const [addInitialCategory, setAddInitialCategory] = useState<Category | undefined>(undefined);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 
   const [isSettleOpen, setIsSettleOpen] = useState(false);
@@ -46,6 +53,7 @@ export function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isRecurringOpen, setIsRecurringOpen] = useState(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
+  const [isBalanceInfoOpen, setIsBalanceInfoOpen] = useState(false);
   const [isProOpen, setIsProOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isAddFriendOpen, setIsAddFriendOpen] = useState(false);
@@ -134,10 +142,16 @@ export function App() {
   };
 
   // Open Add modal with preset
-  const handleOpenAddWithPreset = (preset?: SplitType) => {
+  const handleOpenAddWithPreset = (
+    preset?: SplitType,
+    mode: 'simple' | 'itemized' = 'simple',
+    initialCat?: Category
+  ) => {
     triggerHaptic('light');
     setEditingTransaction(null);
     setInitialSplit(preset || 'equal_split');
+    setAddInitialMode(mode);
+    setAddInitialCategory(initialCat);
     setIsAddOpen(true);
   };
 
@@ -240,6 +254,77 @@ export function App() {
     triggerHaptic('success');
   };
 
+  // Recurring Expenses management
+  const handleAddRecurring = (expenseData: Omit<RecurringExpense, 'id'>) => {
+    const newExpense: RecurringExpense = {
+      ...expenseData,
+      id: 'rec_' + Date.now(),
+    };
+    setState((prev) => ({
+      ...prev,
+      recurringExpenses: [...prev.recurringExpenses, newExpense],
+    }));
+    triggerHaptic('success');
+  };
+
+  const handleDeleteRecurring = (id: string) => {
+    setState((prev) => ({
+      ...prev,
+      recurringExpenses: prev.recurringExpenses.filter((r) => r.id !== id),
+    }));
+    triggerHaptic('light');
+  };
+
+  const handleLogRecurring = (expense: RecurringExpense) => {
+    const now = new Date();
+    const currentMonthKey = now.toISOString().slice(0, 7);
+    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const dateStr = getLocalDateString(now);
+
+    const owedAmount =
+      expense.splitType === 'equal_split'
+        ? Math.round((expense.amount / 2) * 100) / 100
+        : expense.amount;
+
+    const beneficiaryId =
+      expense.paidBy === state.currentUser.id ? state.user2.id : state.currentUser.id;
+
+    const newTx: Transaction = {
+      id: 'tx_rec_' + Date.now(),
+      title: `${expense.title} (${now.toLocaleDateString(undefined, { month: 'short' })})`,
+      amount: expense.amount,
+      paidBy: expense.paidBy,
+      payerOwedAmount: owedAmount,
+      beneficiaryId,
+      splitType: expense.splitType,
+      category: expense.category,
+      date: dateStr,
+      time: timeStr,
+      note: `Recurring monthly bill`,
+      createdAt: Date.now(),
+    };
+
+    setState((prev) => {
+      const activeFriendId = prev.selectedFriendId || prev.user2.id;
+      const updatedTxs = [newTx, ...prev.transactions];
+      const updatedRecurring = prev.recurringExpenses.map((r) =>
+        r.id === expense.id ? { ...r, lastLoggedMonth: currentMonthKey } : r
+      );
+      return {
+        ...prev,
+        transactions: updatedTxs,
+        friendTransactions: {
+          ...prev.friendTransactions,
+          [activeFriendId]: updatedTxs,
+        },
+        recurringExpenses: updatedRecurring,
+      };
+    });
+
+    triggerConfetti();
+    triggerHaptic('success');
+  };
+
   // Reset sample data to exact initial state
   const handleResetSampleData = () => {
     if (window.confirm('Reset transactions to exact demo data?')) {
@@ -335,21 +420,16 @@ export function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [state.transactions, state.user1.id, state.user2.id]);
 
-  // Balance calculations
+  // Balance calculations (Dynamic based on current transactions)
   const balanceSummary = useMemo(() => {
     return calculateBalance(state.transactions, state.currentUser.id, state.user2.id);
   }, [state.transactions, state.currentUser.id, state.user2.id]);
 
-  // Display metrics matching the screenshot:
-  // Net Balance: $46.75
-  // Lent: $56.00
-  // Borrowed: $9.25
-  // Settled: $0.00
-  const displayNetBalance = balanceSummary.netBalance !== 0 ? balanceSummary.netBalance : 46.75;
-  const displayLent = 56.00;
-  const displayBorrowed = 9.25;
-  const displaySettled = 0.00;
-  const displayTxCount = 3;
+  const displayNetBalance = balanceSummary.netBalance;
+  const displayLent = balanceSummary.owedToActiveUser;
+  const displayBorrowed = balanceSummary.owedByActiveUser;
+  const displaySettled = balanceSummary.settledTotal;
+  const displayTxCount = state.transactions.length;
 
   const currentUserName = state.currentUser?.name && state.currentUser.name !== 'Me (Alex)'
     ? state.currentUser.name
@@ -367,14 +447,90 @@ export function App() {
     );
   }, [state.transactions, searchQuery]);
 
-  // Category statistics for donut chart (Food: 45%, Entertainment: 39%, Transport: 16%)
-  const categoryStats = useMemo(() => {
-    return [
-      { name: 'Food & Dining', percentage: 45, color: '#a855f7', glowColor: 'rgba(168, 85, 247, 0.7)' },
-      { name: 'Entertainment', percentage: 39, color: '#e879f9', glowColor: 'rgba(232, 121, 249, 0.7)' },
-      { name: 'Transport', percentage: 16, color: '#00f0ff', glowColor: 'rgba(0, 240, 255, 0.7)' },
+  // Dynamic Category breakdown for SpendingOverviewCard
+  const { totalSpent, categoryStats } = useMemo(() => {
+    const expenseTxs = state.transactions.filter((t) => !t.isSettlement);
+    const total = expenseTxs.reduce((sum, t) => sum + t.amount, 0);
+
+    const categoryMap: Partial<Record<Category, number>> = {};
+    for (const t of expenseTxs) {
+      categoryMap[t.category] = (categoryMap[t.category] || 0) + t.amount;
+    }
+
+    const neonPalette = [
+      { color: '#fb923c', glow: 'rgba(251, 146, 60, 0.7)' },
+      { color: '#c084fc', glow: 'rgba(192, 132, 252, 0.7)' },
+      { color: '#38bdf8', glow: 'rgba(56, 189, 248, 0.7)' },
+      { color: '#e879f9', glow: 'rgba(232, 121, 249, 0.7)' },
+      { color: '#34d399', glow: 'rgba(52, 211, 153, 0.7)' },
+      { color: '#f43f5e', glow: 'rgba(244, 63, 94, 0.7)' },
     ];
-  }, []);
+
+    const sorted = Object.entries(categoryMap)
+      .map(([cat, amt]) => ({
+        category: cat as Category,
+        amount: amt,
+        percentage: total > 0 ? Math.round((amt / total) * 100) : 0,
+      }))
+      .sort((a, b) => b.amount - a.amount);
+
+    const topCategories = sorted.slice(0, 3).map((item, idx) => {
+      const catMeta = CATEGORIES[item.category];
+      const palette = neonPalette[idx % neonPalette.length];
+      return {
+        name: catMeta ? catMeta.label : item.category,
+        percentage: item.percentage,
+        color: palette.color,
+        glowColor: palette.glow,
+      };
+    });
+
+    return {
+      totalSpent: Math.round(total * 100) / 100,
+      categoryStats: topCategories,
+    };
+  }, [state.transactions]);
+
+  // Dynamic This Month vs Last Month for ThisMonthCard
+  const { thisMonthSpend, lastMonthSpend, momPercentChange } = useMemo(() => {
+    const expenseTxs = state.transactions.filter((t) => !t.isSettlement);
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+
+    const currentMonthExpenses = expenseTxs.filter((t) => {
+      if (!t.date) return false;
+      const parts = t.date.split('-');
+      if (parts.length < 2) return false;
+      return parseInt(parts[0], 10) === currentYear && parseInt(parts[1], 10) - 1 === currentMonth;
+    });
+    const currentSpend = currentMonthExpenses.reduce((sum, t) => sum + t.amount, 0);
+
+    const prevMonthDate = new Date(currentYear, currentMonth - 1, 1);
+    const prevYear = prevMonthDate.getFullYear();
+    const prevMonth = prevMonthDate.getMonth();
+
+    const prevMonthExpenses = expenseTxs.filter((t) => {
+      if (!t.date) return false;
+      const parts = t.date.split('-');
+      if (parts.length < 2) return false;
+      return parseInt(parts[0], 10) === prevYear && parseInt(parts[1], 10) - 1 === prevMonth;
+    });
+    const prevSpend = prevMonthExpenses.reduce((sum, t) => sum + t.amount, 0);
+
+    let change = 0;
+    if (prevSpend > 0) {
+      change = Math.round(((currentSpend - prevSpend) / prevSpend) * 100);
+    } else if (currentSpend > 0) {
+      change = 100;
+    }
+
+    return {
+      thisMonthSpend: Math.round(currentSpend * 100) / 100,
+      lastMonthSpend: Math.round(prevSpend * 100) / 100,
+      momPercentChange: Math.abs(change),
+    };
+  }, [state.transactions]);
 
   return (
     <div className={`min-h-screen flex flex-row overflow-x-hidden font-sans relative transition-colors duration-300 ${
@@ -389,10 +545,11 @@ export function App() {
       <Sidebar
         activeNav={activeNav}
         onSelectNav={(nav) => {
-          setActiveNav(nav);
-          if (nav === 'settings') setIsSettingsOpen(true);
-          if (nav === 'settlements') setIsSettleOpen(true);
-          if (nav === 'friends') setIsAddFriendOpen(true);
+          if (nav === 'settings') {
+            setIsSettingsOpen(true);
+          } else {
+            setActiveNav(nav);
+          }
         }}
         onOpenUpgrade={() => setIsProOpen(true)}
       />
@@ -414,6 +571,9 @@ export function App() {
         <NotificationPopover
           isOpen={isNotificationsOpen}
           onClose={() => setIsNotificationsOpen(false)}
+          transactions={state.transactions}
+          activeFriend={state.user2}
+          currency={state.currency}
         />
 
         {/* View Switcher based on Sidebar Navigation */}
@@ -437,7 +597,8 @@ export function App() {
                     <NetBalanceHero
                       netBalance={displayNetBalance}
                       currency={state.currency}
-                      onInfoClick={() => setIsShortcutsOpen(true)}
+                      onInfoClick={() => setIsBalanceInfoOpen(true)}
+                      onShareClick={() => setIsShareOpen(true)}
                       theme={state.theme}
                     />
                   </div>
@@ -460,11 +621,11 @@ export function App() {
 
                 {/* Row 2: Quick Actions */}
                 <QuickActionsRow
-                  onAddExpense={() => handleOpenAddWithPreset('equal_split')}
-                  onSplitBill={() => handleOpenAddWithPreset('equal_split')}
+                  onAddExpense={() => handleOpenAddWithPreset('equal_split', 'simple')}
+                  onSplitBill={() => handleOpenAddWithPreset('equal_split', 'itemized')}
                   onRecordPayment={() => setIsSettleOpen(true)}
-                  onSettleUp={() => setIsSettleOpen(true)}
-                  onCustomSplit={() => handleOpenAddWithPreset('custom')}
+                  onRecurringBills={() => setIsRecurringOpen(true)}
+                  onCustomSplit={() => handleOpenAddWithPreset('custom', 'simple')}
                 />
 
                 {/* Row 3: Recent Transactions Card */}
@@ -483,30 +644,31 @@ export function App() {
 
               {/* Right Column */}
               <div className="lg:col-span-4 flex flex-col gap-4">
-                {/* Spending Overview Donut Chart (Height: 195px, matches Row 1) */}
+                {/* Spending Overview Donut Chart */}
                 <SpendingOverviewCard
-                  totalSpent={56.00}
+                  totalSpent={totalSpent}
                   currency={state.currency}
                   categories={categoryStats}
+                  onCategoryClick={() => setActiveNav('categories')}
                 />
 
                 {/* This Month Comparison Card */}
                 <ThisMonthCard
-                  lastMonthSpent={68.50}
-                  thisMonthSpent={56.00}
-                  percentChange={18}
+                  lastMonthSpent={lastMonthSpend}
+                  thisMonthSpent={thisMonthSpend}
+                  percentChange={momPercentChange}
                   currency={state.currency}
                   onClick={() => setActiveNav('analytics')}
                 />
 
-                {/* Friends Card (Height: 215px, matches Recent Transactions) */}
+                {/* Friends Card */}
                 <FriendsCard
                   friend={state.user2}
                   friendCount={state.friends.length || 1}
                   transactionCount={displayTxCount}
                   netBalance={displayNetBalance}
                   currency={state.currency}
-                  onViewAll={() => setIsAddFriendOpen(true)}
+                  onViewAll={() => setActiveNav('friends')}
                   onSelectFriend={(id) => handleSelectFriend(id)}
                   onAddFriend={() => setIsAddFriendOpen(true)}
                 />
@@ -516,17 +678,26 @@ export function App() {
         ) : activeNav === 'transactions' ? (
           /* Full Transactions Ledger View */
           <div className="w-full max-w-4xl mx-auto py-4 animate-fadeIn">
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
               <div>
-                <h2 className="text-2xl font-bold text-white">All Transactions</h2>
-                <p className="text-xs text-slate-400">Complete transaction history with {state.user2.name}</p>
+                <h2 className="text-2xl font-bold">All Transactions</h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Complete transaction history with {state.user2.name}</p>
               </div>
-              <button
-                onClick={() => handleOpenAddWithPreset('equal_split')}
-                className="px-4 py-2.5 rounded-xl btn-neon-cyan text-xs font-bold uppercase tracking-wider"
-              >
-                + Add Expense
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setActiveNav('dashboard')}
+                  className="px-3.5 py-2 rounded-xl border border-purple-200 dark:border-purple-500/30 text-xs font-semibold hover:bg-purple-50 dark:hover:bg-white/5 transition-colors"
+                >
+                  ← Dashboard
+                </button>
+                <button
+                  onClick={() => handleOpenAddWithPreset('equal_split')}
+                  className="px-4 py-2 rounded-xl btn-neon-cyan text-xs font-bold uppercase tracking-wider"
+                >
+                  + Add Expense
+                </button>
+              </div>
             </div>
             <TransactionList
               state={state}
@@ -541,23 +712,64 @@ export function App() {
         ) : activeNav === 'analytics' ? (
           /* Full Analytics View */
           <div className="w-full max-w-4xl mx-auto py-4 animate-fadeIn">
+            <div className="mb-4">
+              <button
+                type="button"
+                onClick={() => setActiveNav('dashboard')}
+                className="px-3.5 py-2 rounded-xl border border-purple-200 dark:border-purple-500/30 text-xs font-semibold hover:bg-purple-50 dark:hover:bg-white/5 transition-colors"
+              >
+                ← Back to Dashboard
+              </button>
+            </div>
             <AnalyticsView
               state={state}
               onUpdateBudget={handleUpdateBudget}
             />
           </div>
-        ) : (
-          <div className="w-full max-w-4xl mx-auto py-8 text-center animate-fadeIn">
-            <h3 className="text-xl font-bold text-white capitalize">{activeNav}</h3>
-            <p className="text-sm text-slate-400 mt-2">Manage your {activeNav} settings and preferences.</p>
-            <button
-              onClick={() => setActiveNav('dashboard')}
-              className="mt-6 px-5 py-2.5 rounded-xl bg-purple-950 border border-purple-500/40 text-purple-300 font-semibold text-xs hover:border-purple-400"
-            >
-              ← Back to Dashboard
-            </button>
-          </div>
-        )}
+        ) : activeNav === 'friends' ? (
+          /* Full Friends Management View */
+          <FriendsView
+            state={state}
+            onSelectFriend={handleSelectFriend}
+            onAddFriend={() => setIsAddFriendOpen(true)}
+            onOpenSettle={(id) => {
+              handleSelectFriend(id);
+              setIsSettleOpen(true);
+            }}
+            onOpenShare={(id) => {
+              handleSelectFriend(id);
+              setIsShareOpen(true);
+            }}
+            onViewTransactions={(id) => {
+              handleSelectFriend(id);
+              setActiveNav('transactions');
+            }}
+            onBackToDashboard={() => setActiveNav('dashboard')}
+          />
+        ) : activeNav === 'settlements' ? (
+          /* Full Settlements View */
+          <SettlementsView
+            state={state}
+            onOpenSettle={() => setIsSettleOpen(true)}
+            onOpenShare={() => setIsShareOpen(true)}
+            onBackToDashboard={() => setActiveNav('dashboard')}
+            onSelectTransaction={(tx) => {
+              setEditingTransaction(tx);
+              setIsAddOpen(true);
+            }}
+          />
+        ) : activeNav === 'categories' ? (
+          /* Full Categories Breakdown View */
+          <CategoriesView
+            state={state}
+            onBackToDashboard={() => setActiveNav('dashboard')}
+            onSelectTransaction={(tx) => {
+              setEditingTransaction(tx);
+              setIsAddOpen(true);
+            }}
+            onAddNewExpense={(cat) => handleOpenAddWithPreset('equal_split', 'simple', cat)}
+          />
+        ) : null}
       </div>
 
       {/* Modals */}
@@ -568,6 +780,8 @@ export function App() {
         onSave={handleSaveTransaction}
         editingTransaction={editingTransaction}
         initialSplitType={initialSplit}
+        initialMode={addInitialMode}
+        initialCategory={addInitialCategory}
       />
 
       <SettleModal
@@ -581,6 +795,20 @@ export function App() {
         isOpen={isShareOpen}
         onClose={() => setIsShareOpen(false)}
         state={state}
+      />
+
+      <BalanceInfoModal
+        isOpen={isBalanceInfoOpen}
+        onClose={() => setIsBalanceInfoOpen(false)}
+        netBalance={displayNetBalance}
+        totalLent={displayLent}
+        totalBorrowed={displayBorrowed}
+        settledTotal={displaySettled}
+        currency={state.currency}
+        activeUser={state.currentUser}
+        friend={state.user2}
+        onOpenSettle={() => setIsSettleOpen(true)}
+        onOpenShare={() => setIsShareOpen(true)}
       />
 
       <SettingsModal
@@ -597,9 +825,9 @@ export function App() {
         isOpen={isRecurringOpen}
         onClose={() => setIsRecurringOpen(false)}
         state={state}
-        onAddRecurring={() => {}}
-        onDeleteRecurring={() => {}}
-        onLogRecurring={() => {}}
+        onAddRecurring={handleAddRecurring}
+        onDeleteRecurring={handleDeleteRecurring}
+        onLogRecurring={handleLogRecurring}
       />
 
       <ShortcutsModal
