@@ -4,7 +4,7 @@ import { calculateBalance, formatMoney } from '../utils/formatters';
 import { triggerConfetti } from '../utils/confetti';
 import { triggerHaptic } from '../utils/haptics';
 import { QRCodeDisplay } from './QRCodeDisplay';
-import { X, Check, QrCode, ExternalLink, AlertCircle } from 'lucide-react';
+import { X, Check, QrCode, ExternalLink, AlertCircle, CheckCircle2, Sparkles } from 'lucide-react';
 
 interface SettleModalProps {
   isOpen: boolean;
@@ -17,13 +17,22 @@ export const SettleModal: React.FC<SettleModalProps> = ({ isOpen, onClose, state
   const activeUser = state.activeUserId === state.user1.id ? state.user1 : state.user2;
   const friend = state.activeUserId === state.user1.id ? state.user2 : state.user1;
 
-  const { netBalance } = calculateBalance(state.transactions, activeUser.id, friend.id);
+  const { netBalance, owedToActiveUser, owedByActiveUser, settledTotal } = calculateBalance(
+    state.transactions,
+    activeUser.id,
+    friend.id
+  );
+
+  const isZeroBalance = Math.abs(netBalance) < 0.005;
+  const [showAdvanceForm, setShowAdvanceForm] = useState(false);
 
   const debtor = netBalance > 0 ? friend : activeUser;
   const creditor = netBalance > 0 ? activeUser : friend;
-  const defaultAmount = Math.abs(netBalance);
+  const defaultAmount = isZeroBalance ? 10 : Math.abs(netBalance);
 
-  const [settleAmount, setSettleAmount] = useState<string>(defaultAmount.toFixed(2));
+  const [settleAmount, setSettleAmount] = useState<string>(
+    isZeroBalance ? '' : Math.abs(netBalance).toFixed(2)
+  );
   const [showQR, setShowQR] = useState(false);
   const [paymentMode, setPaymentMode] = useState<'upi' | 'paypal' | 'venmo' | 'cash'>('upi');
   const [note, setNote] = useState('Account balance settled');
@@ -41,7 +50,8 @@ export const SettleModal: React.FC<SettleModalProps> = ({ isOpen, onClose, state
   // Sync state whenever modal opens or netBalance / active user changes
   useEffect(() => {
     if (isOpen) {
-      setSettleAmount(defaultAmount.toFixed(2));
+      setShowAdvanceForm(false);
+      setSettleAmount(isZeroBalance ? '' : Math.abs(netBalance).toFixed(2));
       setShowQR(false);
       setPaymentMode(
         creditor.upiId
@@ -52,11 +62,11 @@ export const SettleModal: React.FC<SettleModalProps> = ({ isOpen, onClose, state
           ? 'venmo'
           : 'cash'
       );
-      setNote('Account balance settled');
+      setNote(isZeroBalance ? 'Pre-payment / Advance credit' : 'Account balance settled');
     }
-  }, [isOpen, defaultAmount, creditor.upiId, creditor.paypalUser, creditor.venmoUser]);
+  }, [isOpen, netBalance, isZeroBalance, creditor.upiId, creditor.paypalUser, creditor.venmoUser]);
 
-  if (!isOpen || Math.abs(netBalance) < 0.005) return null;
+  if (!isOpen) return null;
 
   const amountToSettle = parseFloat(settleAmount);
   const isAmountValid = !isNaN(amountToSettle) && amountToSettle > 0;
@@ -92,7 +102,7 @@ export const SettleModal: React.FC<SettleModalProps> = ({ isOpen, onClose, state
     if (!isAmountValid) return;
     onSettle(amountToSettle, debtor.id, creditor.id, note);
     // If settling full or near full balance, trigger celebration
-    if (Math.abs(amountToSettle - defaultAmount) < 0.02) {
+    if (isZeroBalance || Math.abs(amountToSettle - Math.abs(netBalance)) < 0.02) {
       triggerConfetti();
       triggerHaptic('success');
     } else {
@@ -108,13 +118,13 @@ export const SettleModal: React.FC<SettleModalProps> = ({ isOpen, onClose, state
       }}
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200"
     >
-      <div className="relative w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col text-slate-900 dark:text-white">
+      <div className="relative w-full max-w-md bg-white dark:bg-[#140d25] border border-purple-200 dark:border-purple-500/40 rounded-3xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col text-slate-900 dark:text-white">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-purple-100 dark:border-purple-500/20">
           <div className="flex items-center gap-2">
             <span className="text-xl">🤝</span>
             <h3 className="text-base font-bold text-slate-900 dark:text-white">
-              Settle Up Balances
+              {isZeroBalance ? 'Ledger Balance Status' : 'Settle Up Balances'}
             </h3>
           </div>
           <button
@@ -127,239 +137,317 @@ export const SettleModal: React.FC<SettleModalProps> = ({ isOpen, onClose, state
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-          {/* Summary Box */}
-          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 flex items-center gap-3">
-            <div className="text-3xl">{debtor.avatar}</div>
-            <div className="flex-1">
-              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Payment Flow</p>
-              <p className="text-sm font-bold text-slate-900 dark:text-white">
-                <span className="text-rose-600 dark:text-rose-400">{debtor.name}</span> pays{' '}
-                <span className="text-emerald-600 dark:text-emerald-400">{creditor.name}</span>
-              </p>
-            </div>
-            <div className="text-right">
-              <span className="text-xs text-slate-500 dark:text-slate-400">Total Due</span>
-              <p className="text-base font-black text-emerald-600 dark:text-emerald-400">
-                {formatMoney(defaultAmount, state.currency)}
-              </p>
-            </div>
-          </div>
+          {/* ZERO BALANCE STATE: Show celebratory settled view */}
+          {isZeroBalance && !showAdvanceForm ? (
+            <div className="py-4 flex flex-col items-center text-center space-y-4">
+              <div className="w-16 h-16 rounded-full bg-emerald-50 dark:bg-emerald-950/80 border border-emerald-300 dark:border-emerald-500/50 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shadow-[0_0_24px_rgba(16,185,129,0.3)]">
+                <CheckCircle2 className="w-9 h-9 stroke-[2.5]" />
+              </div>
 
-          {/* Amount to Settle Input */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
-              Settlement Amount
-            </label>
-            <div className="relative flex items-center">
-              <span className="absolute left-4 text-xl font-bold text-slate-400 dark:text-slate-500">
-                {state.currency.symbol}
-              </span>
-              <input
-                type="number"
-                step="any"
-                min="0.01"
-                value={settleAmount}
-                onChange={(e) => setSettleAmount(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700/80 rounded-2xl text-xl font-bold text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
-              />
-            </div>
-            <div className="flex items-center gap-2 mt-2 flex-wrap">
-              <button
-                type="button"
-                onClick={() => setSettleAmount(defaultAmount.toFixed(2))}
-                className="px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 text-xs font-bold border border-emerald-500/30"
-              >
-                100% Full ({formatMoney(defaultAmount, state.currency)})
-              </button>
-              {defaultAmount > 5 && (
+              <div>
+                <h4 className="text-lg font-bold text-slate-900 dark:text-white flex items-center justify-center gap-1.5">
+                  <span>All Settled Up!</span>
+                  <Sparkles className="w-4 h-4 text-amber-400" />
+                </h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-[280px]">
+                  You and <strong>{friend.name}</strong> are completely square. There are no outstanding balances between you.
+                </p>
+              </div>
+
+              {/* Stats Summary */}
+              <div className="w-full p-4 rounded-2xl bg-slate-50 dark:bg-purple-950/30 border border-purple-100 dark:border-purple-500/20 text-xs space-y-2">
+                <div className="flex items-center justify-between text-slate-600 dark:text-slate-300">
+                  <span>Total Lent:</span>
+                  <span className="font-bold text-[#0284c7] dark:text-cyan-400">
+                    +{formatMoney(owedToActiveUser, state.currency)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-slate-600 dark:text-slate-300">
+                  <span>Total Borrowed:</span>
+                  <span className="font-bold text-[#ea580c] dark:text-fuchsia-400">
+                    -{formatMoney(owedByActiveUser, state.currency)}
+                  </span>
+                </div>
+                {settledTotal > 0 && (
+                  <div className="flex items-center justify-between text-slate-600 dark:text-slate-300 pt-1 border-t border-purple-100 dark:border-purple-500/20">
+                    <span>Total Settled to date:</span>
+                    <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                      {formatMoney(settledTotal, state.currency)}
+                    </span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between font-bold pt-1 border-t border-purple-200 dark:border-purple-500/30 text-slate-900 dark:text-white">
+                  <span>Net Due:</span>
+                  <span className="text-emerald-600 dark:text-emerald-400 text-sm">
+                    {formatMoney(0, state.currency)}
+                  </span>
+                </div>
+              </div>
+
+              <div className="w-full flex flex-col gap-2 pt-2">
                 <button
                   type="button"
-                  onClick={() => setSettleAmount((defaultAmount / 2).toFixed(2))}
-                  className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-medium"
+                  onClick={onClose}
+                  className="w-full py-3 rounded-2xl btn-neon-cyan font-bold text-xs uppercase tracking-wider"
                 >
-                  50% Half ({formatMoney(defaultAmount / 2, state.currency)})
+                  Awesome, Close
                 </button>
-              )}
-              {defaultAmount > 20 && (
                 <button
                   type="button"
-                  onClick={() => setSettleAmount((defaultAmount / 4).toFixed(2))}
-                  className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-medium"
+                  onClick={() => {
+                    setShowAdvanceForm(true);
+                    setSettleAmount('10.00');
+                  }}
+                  className="w-full py-2.5 text-xs text-purple-700 dark:text-purple-300 hover:underline font-semibold"
                 >
-                  25% ({formatMoney(defaultAmount / 4, state.currency)})
+                  Record an Advance / Pre-payment instead &rarr;
                 </button>
+              </div>
+            </div>
+          ) : (
+            /* NORMAL SETTLE FORM OR ADVANCE PAYMENT FORM */
+            <>
+              {/* Summary Box */}
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-purple-950/40 border border-purple-100 dark:border-purple-500/20 flex items-center gap-3">
+                <div className="text-3xl">{debtor.avatar}</div>
+                <div className="flex-1">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Payment Flow</p>
+                  <p className="text-sm font-bold text-slate-900 dark:text-white">
+                    <span className="text-rose-600 dark:text-rose-400">{debtor.name}</span> pays{' '}
+                    <span className="text-emerald-600 dark:text-emerald-400">{creditor.name}</span>
+                  </p>
+                </div>
+                <div className="text-right">
+                  <span className="text-xs text-slate-500 dark:text-slate-400">
+                    {isZeroBalance ? 'Pre-Payment' : 'Total Due'}
+                  </span>
+                  <p className="text-base font-black text-emerald-600 dark:text-emerald-400">
+                    {formatMoney(isZeroBalance ? amountToSettle || 0 : defaultAmount, state.currency)}
+                  </p>
+                </div>
+              </div>
+
+              {/* Amount to Settle Input */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
+                  {isZeroBalance ? 'Pre-payment Amount' : 'Settlement Amount'}
+                </label>
+                <div className="relative flex items-center">
+                  <span className="absolute left-4 text-xl font-bold text-slate-400 dark:text-slate-500">
+                    {state.currency.symbol}
+                  </span>
+                  <input
+                    type="number"
+                    step="any"
+                    min="0.01"
+                    value={settleAmount}
+                    onChange={(e) => setSettleAmount(e.target.value)}
+                    placeholder="0.00"
+                    className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-950 border border-purple-200 dark:border-purple-500/40 rounded-2xl text-xl font-bold text-slate-900 dark:text-white focus:outline-none focus:border-[#38bdf8] dark:focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/50"
+                  />
+                </div>
+                {!isZeroBalance && (
+                  <div className="flex items-center gap-2 mt-2 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => setSettleAmount(defaultAmount.toFixed(2))}
+                      className="px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 text-xs font-bold border border-emerald-500/30"
+                    >
+                      100% Full ({formatMoney(defaultAmount, state.currency)})
+                    </button>
+                    {defaultAmount > 5 && (
+                      <button
+                        type="button"
+                        onClick={() => setSettleAmount((defaultAmount / 2).toFixed(2))}
+                        className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-medium"
+                      >
+                        50% Half ({formatMoney(defaultAmount / 2, state.currency)})
+                      </button>
+                    )}
+                    {defaultAmount > 20 && (
+                      <button
+                        type="button"
+                        onClick={() => setSettleAmount((defaultAmount / 4).toFixed(2))}
+                        className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-medium"
+                      >
+                        25% ({formatMoney(defaultAmount / 4, state.currency)})
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Payment Method Selector & Instant QR */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    Payment Channel
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowQR(!showQR)}
+                    className="text-xs font-semibold text-[#0284c7] dark:text-cyan-400 hover:underline flex items-center gap-1"
+                  >
+                    <QrCode className="w-3.5 h-3.5" />
+                    {showQR ? 'Hide QR' : 'Show Pay QR'}
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPaymentMode('upi');
+                      setShowQR(true);
+                    }}
+                    className={`p-2.5 rounded-xl border text-center text-xs font-bold transition-all ${
+                      paymentMode === 'upi'
+                        ? 'bg-emerald-500/20 border-emerald-500 text-emerald-700 dark:text-emerald-300'
+                        : 'bg-slate-50 dark:bg-slate-950/60 border-purple-100 dark:border-purple-500/20 text-slate-600 dark:text-slate-400'
+                    }`}
+                  >
+                    UPI / QR
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPaymentMode('paypal');
+                      setShowQR(true);
+                    }}
+                    className={`p-2.5 rounded-xl border text-center text-xs font-bold transition-all ${
+                      paymentMode === 'paypal'
+                        ? 'bg-blue-500/20 border-blue-500 text-blue-700 dark:text-blue-300'
+                        : 'bg-slate-50 dark:bg-slate-950/60 border-purple-100 dark:border-purple-500/20 text-slate-600 dark:text-slate-400'
+                    }`}
+                  >
+                    PayPal
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPaymentMode('venmo');
+                      setShowQR(true);
+                    }}
+                    className={`p-2.5 rounded-xl border text-center text-xs font-bold transition-all ${
+                      paymentMode === 'venmo'
+                        ? 'bg-sky-500/20 border-sky-500 text-sky-700 dark:text-sky-300'
+                        : 'bg-slate-50 dark:bg-slate-950/60 border-purple-100 dark:border-purple-500/20 text-slate-600 dark:text-slate-400'
+                    }`}
+                  >
+                    Venmo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPaymentMode('cash');
+                      setShowQR(false);
+                    }}
+                    className={`p-2.5 rounded-xl border text-center text-xs font-bold transition-all ${
+                      paymentMode === 'cash'
+                        ? 'bg-amber-500/20 border-amber-500 text-amber-700 dark:text-amber-300'
+                        : 'bg-slate-50 dark:bg-slate-950/60 border-purple-100 dark:border-purple-500/20 text-slate-600 dark:text-slate-400'
+                    }`}
+                  >
+                    💵 Cash / Bank
+                  </button>
+                </div>
+              </div>
+
+              {/* Missing info notice */}
+              {paymentMode === 'upi' && !creditor.upiId && (
+                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-2 text-xs text-amber-700 dark:text-amber-400">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>
+                    No UPI ID configured for {creditor.name}. You can add one in Settings.
+                  </span>
+                </div>
               )}
-            </div>
-          </div>
 
-          {/* Payment Method Selector & Instant QR */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                Payment Channel
-              </label>
-              <button
-                type="button"
-                onClick={() => setShowQR(!showQR)}
-                className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1"
-              >
-                <QrCode className="w-3.5 h-3.5" />
-                {showQR ? 'Hide QR' : 'Show Pay QR'}
-              </button>
-            </div>
+              {paymentMode === 'paypal' && !creditor.paypalUser && (
+                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-2 text-xs text-amber-700 dark:text-amber-400">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>
+                    No PayPal username configured for {creditor.name}. You can add one in Settings.
+                  </span>
+                </div>
+              )}
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setPaymentMode('upi');
-                  setShowQR(true);
-                }}
-                className={`p-2.5 rounded-xl border text-center text-xs font-bold transition-all ${
-                  paymentMode === 'upi'
-                    ? 'bg-emerald-500/20 border-emerald-500 text-emerald-700 dark:text-emerald-300'
-                    : 'bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400'
-                }`}
-              >
-                UPI / QR
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setPaymentMode('paypal');
-                  setShowQR(true);
-                }}
-                className={`p-2.5 rounded-xl border text-center text-xs font-bold transition-all ${
-                  paymentMode === 'paypal'
-                    ? 'bg-blue-500/20 border-blue-500 text-blue-700 dark:text-blue-300'
-                    : 'bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400'
-                }`}
-              >
-                PayPal
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setPaymentMode('venmo');
-                  setShowQR(true);
-                }}
-                className={`p-2.5 rounded-xl border text-center text-xs font-bold transition-all ${
-                  paymentMode === 'venmo'
-                    ? 'bg-sky-500/20 border-sky-500 text-sky-700 dark:text-sky-300'
-                    : 'bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400'
-                }`}
-              >
-                Venmo
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setPaymentMode('cash');
-                  setShowQR(false);
-                }}
-                className={`p-2.5 rounded-xl border text-center text-xs font-bold transition-all ${
-                  paymentMode === 'cash'
-                    ? 'bg-amber-500/20 border-amber-500 text-amber-700 dark:text-amber-300'
-                    : 'bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400'
-                }`}
-              >
-                💵 Cash / Bank
-              </button>
-            </div>
-          </div>
+              {paymentMode === 'venmo' && !creditor.venmoUser && (
+                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-2 text-xs text-amber-700 dark:text-amber-400">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>
+                    No Venmo username configured for {creditor.name}. You can add one in Settings.
+                  </span>
+                </div>
+              )}
 
-          {/* Missing info notice */}
-          {paymentMode === 'upi' && !creditor.upiId && (
-            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-2 text-xs text-amber-700 dark:text-amber-400">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              <span>
-                No UPI ID configured for {creditor.name}. You can add one in Settings.
-              </span>
-            </div>
-          )}
+              {/* QR Code Container */}
+              {showQR && (
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-purple-950/30 border border-purple-100 dark:border-purple-500/30 flex flex-col items-center justify-center animate-in fade-in duration-200">
+                  <QRCodeDisplay
+                    value={qrValue}
+                    size={160}
+                    label={`Scan to pay ${creditor.name} ${formatMoney(isAmountValid ? amountToSettle : 0, state.currency)}`}
+                  />
+                  {paymentMode === 'paypal' && paypalUrl && (
+                    <a
+                      href={paypalUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-3 flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 hover:underline font-semibold"
+                    >
+                      <span>Open direct PayPal link</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  )}
+                  {paymentMode === 'venmo' && venmoUrl && (
+                    <a
+                      href={venmoUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-3 flex items-center gap-1.5 text-xs text-sky-600 dark:text-sky-400 hover:underline font-semibold"
+                    >
+                      <span>Open direct Venmo link</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  )}
+                </div>
+              )}
 
-          {paymentMode === 'paypal' && !creditor.paypalUser && (
-            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-2 text-xs text-amber-700 dark:text-amber-400">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              <span>
-                No PayPal username configured for {creditor.name}. You can add one in Settings.
-              </span>
-            </div>
-          )}
+              {/* Note */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
+                  Settlement Note
+                </label>
+                <input
+                  type="text"
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-purple-200 dark:border-purple-500/30 rounded-xl text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:border-[#38bdf8] dark:focus:border-cyan-400"
+                />
+              </div>
 
-          {paymentMode === 'venmo' && !creditor.venmoUser && (
-            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-2 text-xs text-amber-700 dark:text-amber-400">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              <span>
-                No Venmo username configured for {creditor.name}. You can add one in Settings.
-              </span>
-            </div>
-          )}
-
-          {/* QR Code Container */}
-          {showQR && (
-            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/90 border border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center animate-in fade-in duration-200">
-              <QRCodeDisplay
-                value={qrValue}
-                size={160}
-                label={`Scan to pay ${creditor.name} ${formatMoney(isAmountValid ? amountToSettle : 0, state.currency)}`}
-              />
-              {paymentMode === 'paypal' && paypalUrl && (
-                <a
-                  href={paypalUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-3 flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 hover:underline font-semibold"
+              {/* Footer */}
+              <div className="pt-2 flex items-center justify-end gap-2.5 border-t border-purple-100 dark:border-purple-500/20">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2.5 rounded-xl border border-purple-200 dark:border-purple-500/30 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
                 >
-                  <span>Open direct PayPal link</span>
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </a>
-              )}
-              {paymentMode === 'venmo' && venmoUrl && (
-                <a
-                  href={venmoUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-3 flex items-center gap-1.5 text-xs text-sky-600 dark:text-sky-400 hover:underline font-semibold"
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirm}
+                  disabled={!isAmountValid}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-bold text-slate-950 shadow-lg shadow-emerald-500/20 active:scale-95 transition-all"
                 >
-                  <span>Open direct Venmo link</span>
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </a>
-              )}
-            </div>
+                  <Check className="w-4 h-4" />
+                  <span>{isZeroBalance ? 'Record Advance' : 'Mark as Settled'}</span>
+                </button>
+              </div>
+            </>
           )}
-
-          {/* Note */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
-              Settlement Note
-            </label>
-            <input
-              type="text"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700/80 rounded-xl text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
-            />
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/90 flex items-center justify-end gap-2.5">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleConfirm}
-            disabled={!isAmountValid}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-bold text-slate-950 shadow-lg shadow-emerald-500/20 active:scale-95 transition-all"
-          >
-            <Check className="w-4 h-4" />
-            <span>Mark as Settled</span>
-          </button>
         </div>
       </div>
     </div>

@@ -20,6 +20,8 @@ interface AddTransactionModalProps {
   onSave: (tx: Omit<Transaction, 'id' | 'createdAt'>) => void;
   editingTransaction?: Transaction | null;
   initialSplitType?: SplitType;
+  initialMode?: 'simple' | 'itemized';
+  initialCategory?: Category;
 }
 
 const COMMON_PRESETS: { title: string; category: Category }[] = [
@@ -40,6 +42,8 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
   onSave,
   editingTransaction,
   initialSplitType = 'equal_split',
+  initialMode = 'simple',
+  initialCategory,
 }) => {
   const activeUser = state.activeUserId === state.user1.id ? state.user1 : state.user2;
   const friend = state.activeUserId === state.user1.id ? state.user2 : state.user1;
@@ -94,14 +98,14 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
       setPayerId(defaultPayerId);
       setSplitType(initialSplitType);
       setCustomOwedStr('');
-      setCategory('food');
+      setCategory(initialCategory || 'food');
       setDate(getLocalDateString());
       setNote('');
       setReceiptUrl(undefined);
       setItems([]);
-      setEntryMode('simple');
+      setEntryMode(initialMode || 'simple');
     }
-  }, [editingTransaction, initialSplitType, activeUser.id, friend.id, isOpen]);
+  }, [editingTransaction, initialSplitType, initialMode, initialCategory, activeUser.id, friend.id, isOpen]);
 
   if (!isOpen) return null;
 
