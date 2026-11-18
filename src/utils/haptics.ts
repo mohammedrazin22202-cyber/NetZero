@@ -1,6 +1,6 @@
 // Mobile haptic feedback helper using navigator.vibrate
 
-export function triggerHaptic(type: 'light' | 'medium' | 'success' | 'warning' = 'light') {
+export function triggerHaptic(type: 'light' | 'medium' | 'success' | 'warning' | 'error' = 'light') {
   if (typeof window === 'undefined' || !('vibrate' in navigator)) return;
 
   try {
@@ -15,6 +15,7 @@ export function triggerHaptic(type: 'light' | 'medium' | 'success' | 'warning' =
         navigator.vibrate([15, 60, 25]);
         break;
       case 'warning':
+      case 'error':
         navigator.vibrate([30, 40, 30]);
         break;
     }

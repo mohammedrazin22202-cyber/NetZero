@@ -14,6 +14,7 @@ export const AddFriendModal: React.FC<AddFriendModalProps> = ({
   onAddFriend,
 }) => {
   const [name, setName] = useState('');
+  const [pin, setPin] = useState(() => String(Math.floor(1000 + Math.random() * 9000)));
   const [upiId, setUpiId] = useState('');
   const [paypalUser, setPaypalUser] = useState('');
 
@@ -37,11 +38,13 @@ export const AddFriendModal: React.FC<AddFriendModalProps> = ({
       name: name.trim(),
       avatar: name.trim().charAt(0).toUpperCase(),
       color: 'purple',
+      pin: pin.trim().slice(0, 4) || '1234',
       upiId: upiId.trim() || undefined,
       paypalUser: paypalUser.trim() || undefined,
     });
 
     setName('');
+    setPin(String(Math.floor(1000 + Math.random() * 9000)));
     setUpiId('');
     setPaypalUser('');
     onClose();
@@ -86,6 +89,22 @@ export const AddFriendModal: React.FC<AddFriendModalProps> = ({
               placeholder="e.g. Alex, Jordan, Sarah"
               className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-[#1b1233] border border-purple-200 dark:border-purple-500/30 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-[#38bdf8] dark:focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/50"
             />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wider">
+              Friend's 4-Digit User ID
+            </label>
+            <input
+              type="text"
+              required
+              maxLength={4}
+              value={pin}
+              onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+              placeholder="e.g. 1234"
+              className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-[#1b1233] border border-purple-200 dark:border-purple-500/30 text-slate-900 dark:text-white text-sm font-mono tracking-widest focus:outline-none focus:border-[#38bdf8] dark:focus:border-cyan-400"
+            />
+            <p className="text-[10px] text-slate-400 mt-1">Used by friend to log in and approve transactions</p>
           </div>
 
           <div>
