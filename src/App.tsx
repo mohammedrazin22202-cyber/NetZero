@@ -1,10 +1,11 @@
-import { useState, useEffect, useMemo } from 'react';
-import { AppState, SplitType, Transaction, UserProfile, Category, RecurringExpense } from './types';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { AppState, SplitType, Transaction, UserProfile, Category, RecurringExpense, KeyboardShortcuts, DEFAULT_KEYBOARD_SHORTCUTS } from './types';
 import { loadAppState, saveAppState, getFreshSampleTransactions } from './utils/storage';
 import { getLocalDateString, calculateBalance } from './utils/formatters';
 import { CATEGORIES } from './utils/categories';
 import { triggerConfetti } from './utils/confetti';
 import { triggerHaptic } from './utils/haptics';
+import { matchesKey } from './utils/shortcuts';
 
 // Visual Components matching the exact screenshot design
 import { AmbientNeonBackground } from './components/AmbientNeonBackground';
@@ -35,9 +36,16 @@ import { AnalyticsView } from './components/AnalyticsView';
 import { FriendsView } from './components/FriendsView';
 import { SettlementsView } from './components/SettlementsView';
 import { CategoriesView } from './components/CategoriesView';
+import { PinLoginScreen } from './components/PinLoginScreen';
+import { ApprovalRequestsBanner } from './components/ApprovalRequestsBanner';
 
 export function App() {
   const [state, setState] = useState<AppState>(loadAppState);
+  // Always locked on initial load / refresh
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [sessionTerminatedReason, setSessionTerminatedReason] = useState<string | null>(null);
+  const INACTIVITY_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes of inactivity
+  const lastActivityRef = useRef<number>(Date.now());
   const [activeNav, setActiveNav] = useState<NavItemKey>('dashboard');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -46,11 +54,13 @@ export function App() {
   const [initialSplit, setInitialSplit] = useState<SplitType>('equal_split');
   const [addInitialMode, setAddInitialMode] = useState<'simple' | 'itemized'>('simple');
   const [addInitialCategory, setAddInitialCategory] = useState<Category | undefined>(undefined);
+  const [addInitialTxType, setAddInitialTxType] = useState<'expense' | 'loan'>('expense');
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 
   const [isSettleOpen, setIsSettleOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [settingsSection, setSettingsSection] = useState<'profiles' | 'security' | 'currency' | 'data'>('profiles');
   const [isRecurringOpen, setIsRecurringOpen] = useState(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [isBalanceInfoOpen, setIsBalanceInfoOpen] = useState(false);
@@ -58,6 +68,40 @@ export function App() {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isAddFriendOpen, setIsAddFriendOpen] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState<string>('This Month');
+  const [acknowledgedNotifications, setAcknowledgedNotifications] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem('netzero_acknowledged_notifications');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const handleAcknowledgeNotification = (id: string) => {
+    triggerHaptic('light');
+    setAcknowledgedNotifications((prev) => {
+      const updated = Array.from(new Set([...prev, id]));
+      try {
+        localStorage.setItem('netzero_acknowledged_notifications', JSON.stringify(updated));
+      } catch {
+        // ignore
+      }
+      return updated;
+    });
+  };
+
+  const handleAcknowledgeAllNotifications = (ids: string[]) => {
+    triggerHaptic('success');
+    setAcknowledgedNotifications((prev) => {
+      const updated = Array.from(new Set([...prev, ...ids]));
+      try {
+        localStorage.setItem('netzero_acknowledged_notifications', JSON.stringify(updated));
+      } catch {
+        // ignore
+      }
+      return updated;
+    });
+  };
 
   // Sync state to local storage on change
   useEffect(() => {
@@ -74,12 +118,347 @@ export function App() {
     }
   }, [state.theme]);
 
+  // Active user / friend resolution based on activeUserId & PIN authentication
+  const activeUser = state.activeUserId === state.user2.id ? state.user2 : state.currentUser;
+  const activePartner = state.activeUserId === state.user2.id ? state.currentUser : state.user2;
+
+  // Guarantee that refreshing or reloading always locks the app
+  useEffect(() => {
+    sessionStorage.removeItem('netzero_authenticated');
+    sessionStorage.removeItem('netzero_session_id');
+    sessionStorage.removeItem('netzero_session_user_id');
+
+    const handleBeforeUnload = () => {
+      sessionStorage.removeItem('netzero_authenticated');
+      sessionStorage.removeItem('netzero_session_id');
+      sessionStorage.removeItem('netzero_session_user_id');
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
+
+  // PIN Login & Session Lock handlers
+  const handleLoginSuccess = (user: UserProfile) => {
+    const newSessionId = 'sess_' + user.id + '_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
+    sessionStorage.setItem('netzero_session_id', newSessionId);
+    sessionStorage.setItem('netzero_session_user_id', user.id);
+    localStorage.setItem('netzero_active_session_' + user.id, newSessionId);
+
+    // Broadcast login to terminate any previous sessions of this user on other tabs/devices
+    try {
+      const channel = new BroadcastChannel('netzero_session_sync');
+      channel.postMessage({
+        type: 'USER_LOGIN',
+        userId: user.id,
+        sessionId: newSessionId,
+        timestamp: Date.now(),
+      });
+      channel.close();
+    } catch {
+      // BroadcastChannel unavailable
+    }
+
+    setSessionTerminatedReason(null);
+    lastActivityRef.current = Date.now();
+    setIsAuthenticated(true);
+    triggerHaptic('success');
+    setState((prev) => {
+      const isMainUser = user.id === prev.currentUser.id;
+      if (isMainUser) {
+        return {
+          ...prev,
+          activeUserId: prev.currentUser.id,
+        };
+      } else {
+        // Friend logging in with their 4-digit ID
+        return {
+          ...prev,
+          selectedFriendId: user.id,
+          user2: user,
+          transactions: prev.friendTransactions[user.id] || [],
+          activeUserId: user.id,
+        };
+      }
+    });
+  };
+
+  const handleLockApp = () => {
+    sessionStorage.removeItem('netzero_session_id');
+    sessionStorage.removeItem('netzero_session_user_id');
+    setSessionTerminatedReason(null);
+    setIsAuthenticated(false);
+    triggerHaptic('medium');
+  };
+
+  // Single-device session concurrency listener (auto-logout if second device/tab logs in)
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const myUserId = sessionStorage.getItem('netzero_session_user_id') || activeUser.id;
+    const mySessionId = sessionStorage.getItem('netzero_session_id');
+
+    // If session ID is missing but authenticated, assign one now
+    if (!mySessionId) {
+      const newSess = 'sess_' + myUserId + '_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
+      sessionStorage.setItem('netzero_session_id', newSess);
+      sessionStorage.setItem('netzero_session_user_id', myUserId);
+      localStorage.setItem('netzero_active_session_' + myUserId, newSess);
+      return;
+    }
+
+    const triggerDeviceLogout = () => {
+      triggerHaptic('warning');
+      sessionStorage.removeItem('netzero_session_id');
+      sessionStorage.removeItem('netzero_session_user_id');
+      setIsAuthenticated(false);
+      setSessionTerminatedReason(
+        'You were automatically logged out because your account was logged into on another device or window.'
+      );
+    };
+
+    // 1. Storage event listener (across browser tabs/windows)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'netzero_active_session_' + myUserId) {
+        if (e.newValue && e.newValue !== mySessionId) {
+          triggerDeviceLogout();
+        }
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+
+    // 2. BroadcastChannel for instant real-time logout across windows
+    let channel: BroadcastChannel | null = null;
+    try {
+      channel = new BroadcastChannel('netzero_session_sync');
+      channel.onmessage = (event) => {
+        if (event.data?.type === 'USER_LOGIN' && event.data?.userId === myUserId) {
+          if (event.data?.sessionId !== mySessionId) {
+            triggerDeviceLogout();
+          }
+        }
+      };
+    } catch {
+      // BroadcastChannel unavailable
+    }
+
+    // 3. Fallback interval check (every 1.5 seconds)
+    const interval = setInterval(() => {
+      const activeSession = localStorage.getItem('netzero_active_session_' + myUserId);
+      if (activeSession && activeSession !== mySessionId) {
+        triggerDeviceLogout();
+      }
+    }, 1500);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      if (channel) channel.close();
+      clearInterval(interval);
+    };
+  }, [isAuthenticated, activeUser.id]);
+
+  // 3-Minute Inactivity Auto-Lock
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    // Reset timestamp when authenticated
+    lastActivityRef.current = Date.now();
+
+    const updateActivity = () => {
+      lastActivityRef.current = Date.now();
+    };
+
+    const checkInactivity = () => {
+      const elapsed = Date.now() - lastActivityRef.current;
+      if (elapsed >= INACTIVITY_TIMEOUT_MS) {
+        triggerHaptic('warning');
+        sessionStorage.removeItem('netzero_session_id');
+        sessionStorage.removeItem('netzero_session_user_id');
+        setIsAddOpen(false);
+        setIsSettleOpen(false);
+        setIsSettingsOpen(false);
+        setIsShortcutsOpen(false);
+        setIsProOpen(false);
+        setIsAddFriendOpen(false);
+        setIsRecurringOpen(false);
+        setIsBalanceInfoOpen(false);
+        setIsNotificationsOpen(false);
+        setIsAuthenticated(false);
+        setSessionTerminatedReason(
+          'Your session was automatically locked after 3 minutes of inactivity to protect your account.'
+        );
+      }
+    };
+
+    // User interaction events
+    const interactionEvents: (keyof WindowEventMap)[] = [
+      'mousedown',
+      'keydown',
+      'touchstart',
+      'scroll',
+      'wheel',
+      'pointerdown',
+    ];
+
+    // Throttle mousemove to avoid continuous event firing overhead
+    let lastMouseMove = 0;
+    const handleMouseMove = () => {
+      const now = Date.now();
+      if (now - lastMouseMove > 2000) {
+        lastMouseMove = now;
+        updateActivity();
+      }
+    };
+
+    interactionEvents.forEach((evt) => {
+      window.addEventListener(evt, updateActivity, { passive: true });
+    });
+    window.addEventListener('mousemove', handleMouseMove, { passive: true });
+
+    // Handle tab visibility change / focus (immediate check when returning after tab switch or sleep)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        checkInactivity();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', checkInactivity);
+
+    // Periodic check every 1.5 seconds
+    const intervalId = setInterval(checkInactivity, 1500);
+
+    return () => {
+      interactionEvents.forEach((evt) => {
+        window.removeEventListener(evt, updateActivity);
+      });
+      window.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', checkInactivity);
+      clearInterval(intervalId);
+    };
+  }, [isAuthenticated]);
+
+  // Transaction Approval & 72-Hour Hold handlers
+  const handleAcceptTransaction = (txId: string) => {
+    triggerConfetti();
+    triggerHaptic('success');
+    setState((prev) => {
+      const activeFriendId = prev.selectedFriendId || prev.user2.id;
+      const updatedTxs = prev.transactions.map((t) =>
+        t.id === txId ? { ...t, approvalStatus: 'approved' as const } : t
+      );
+      return {
+        ...prev,
+        transactions: updatedTxs,
+        friendTransactions: {
+          ...prev.friendTransactions,
+          [activeFriendId]: updatedTxs,
+        },
+      };
+    });
+  };
+
+  const handleDenyTransaction = (txId: string) => {
+    triggerHaptic('error');
+    const now = Date.now();
+    const lockedUntil = now + 72 * 60 * 60 * 1000;
+    setState((prev) => {
+      const activeFriendId = prev.selectedFriendId || prev.user2.id;
+      const updatedTxs = prev.transactions.map((t) =>
+        t.id === txId
+          ? {
+              ...t,
+              approvalStatus: 'on_hold' as const,
+              deniedAt: now,
+              lockedUntil,
+              reviewVotes: {},
+            }
+          : t
+      );
+      return {
+        ...prev,
+        transactions: updatedTxs,
+        friendTransactions: {
+          ...prev.friendTransactions,
+          [activeFriendId]: updatedTxs,
+        },
+      };
+    });
+  };
+
+  const handleFastForwardHold = (txId: string) => {
+    triggerHaptic('medium');
+    setState((prev) => {
+      const activeFriendId = prev.selectedFriendId || prev.user2.id;
+      const updatedTxs = prev.transactions.map((t) =>
+        t.id === txId
+          ? {
+              ...t,
+              approvalStatus: 'disputed_review' as const,
+              lockedUntil: Date.now() - 1000,
+            }
+          : t
+      );
+      return {
+        ...prev,
+        transactions: updatedTxs,
+        friendTransactions: {
+          ...prev.friendTransactions,
+          [activeFriendId]: updatedTxs,
+        },
+      };
+    });
+  };
+
+  const handleVoteReview = (txId: string, isTrue: boolean) => {
+    triggerHaptic(isTrue ? 'success' : 'error');
+    setState((prev) => {
+      const activeFriendId = prev.selectedFriendId || prev.user2.id;
+      const updatedTxs = prev.transactions.map((t) => {
+        if (t.id !== txId) return t;
+
+        const currentVotes = { ...(t.reviewVotes || {}) };
+        currentVotes[activeUser.id] = isTrue;
+
+        // Check if both parties have voted
+        const userVote = currentVotes[activeUser.id];
+        const partnerVote = currentVotes[activePartner.id];
+
+        let newStatus = t.approvalStatus;
+
+        // "if both said true. record it and vice versa"
+        if (userVote !== undefined && partnerVote !== undefined) {
+          if (userVote === true && partnerVote === true) {
+            newStatus = 'approved';
+            triggerConfetti();
+          } else {
+            newStatus = 'rejected';
+          }
+        }
+
+        return {
+          ...t,
+          approvalStatus: newStatus,
+          reviewVotes: currentVotes,
+        };
+      });
+
+      return {
+        ...prev,
+        transactions: updatedTxs,
+        friendTransactions: {
+          ...prev.friendTransactions,
+          [activeFriendId]: updatedTxs,
+        },
+      };
+    });
+  };
+
   // Toggle user perspective
   const handleTogglePerspective = () => {
     triggerHaptic('light');
     setState((prev) => ({
       ...prev,
-      activeUserId: prev.activeUserId === prev.user1.id ? prev.user2.id : prev.user1.id,
+      activeUserId: prev.activeUserId === prev.currentUser.id ? prev.user2.id : prev.currentUser.id,
     }));
   };
 
@@ -145,13 +524,15 @@ export function App() {
   const handleOpenAddWithPreset = (
     preset?: SplitType,
     mode: 'simple' | 'itemized' = 'simple',
-    initialCat?: Category
+    initialCat?: Category,
+    initialTxType: 'expense' | 'loan' = 'expense'
   ) => {
     triggerHaptic('light');
     setEditingTransaction(null);
     setInitialSplit(preset || 'equal_split');
     setAddInitialMode(mode);
     setAddInitialCategory(initialCat);
+    setAddInitialTxType(initialTxType);
     setIsAddOpen(true);
   };
 
@@ -181,6 +562,9 @@ export function App() {
           id: 'tx_' + Date.now(),
           time: timeStr,
           createdAt: Date.now(),
+          approvalStatus: 'pending_approval',
+          approvalRequestedBy: activeUser.id,
+          approvalRespondentId: activePartner.id,
         };
         updatedTxs = [newTx, ...prev.transactions];
       }
@@ -217,6 +601,39 @@ export function App() {
     }
   };
 
+  // Delete friend and all their data
+  const handleDeleteFriend = (friendId: string) => {
+    const friendToDelete = state.friends.find((f) => f.id === friendId) || state.user2;
+    if (window.confirm(`Are you sure you want to delete ${friendToDelete.name} and all their transactions? This cannot be undone.`)) {
+      setState((prev) => {
+        const remainingFriends = prev.friends.filter((f) => f.id !== friendId);
+        const newFriends = remainingFriends.length > 0 ? remainingFriends : [
+          {
+            id: 'user_' + Date.now(),
+            name: 'Friend',
+            avatar: 'F',
+            color: 'purple',
+          }
+        ];
+        const nextActiveFriend = newFriends[0];
+        const updatedFriendTxs = { ...prev.friendTransactions };
+        delete updatedFriendTxs[friendId];
+        const nextTxs = updatedFriendTxs[nextActiveFriend.id] || [];
+
+        return {
+          ...prev,
+          friends: newFriends,
+          selectedFriendId: nextActiveFriend.id,
+          user2: nextActiveFriend,
+          transactions: nextTxs,
+          friendTransactions: updatedFriendTxs,
+          activeUserId: prev.currentUser.id,
+        };
+      });
+      triggerHaptic('medium');
+    }
+  };
+
   // Record a settlement
   const handleSettle = (amount: number, paidBy: string, beneficiaryId: string, note: string) => {
     const now = new Date();
@@ -235,6 +652,9 @@ export function App() {
       note: note.trim() || 'Settled up',
       isSettlement: true,
       createdAt: Date.now(),
+      approvalStatus: 'pending_approval',
+      approvalRequestedBy: activeUser.id,
+      approvalRespondentId: activePartner.id,
     };
 
     setState((prev) => {
@@ -302,6 +722,9 @@ export function App() {
       time: timeStr,
       note: `Recurring monthly bill`,
       createdAt: Date.now(),
+      approvalStatus: 'pending_approval',
+      approvalRequestedBy: activeUser.id,
+      approvalRespondentId: activePartner.id,
     };
 
     setState((prev) => {
@@ -377,13 +800,51 @@ export function App() {
     });
   };
 
-  // Keyboard Shortcuts (Ctrl+K for search, N for new, S for settle, P for perspective)
+  const handleUpdateShortcut = (id: keyof KeyboardShortcuts, newKey: string) => {
+    setState((prev) => ({
+      ...prev,
+      shortcuts: {
+        ...(prev.shortcuts || DEFAULT_KEYBOARD_SHORTCUTS),
+        [id]: newKey,
+      },
+    }));
+  };
+
+  const handleResetShortcuts = () => {
+    setState((prev) => ({
+      ...prev,
+      shortcuts: DEFAULT_KEYBOARD_SHORTCUTS,
+    }));
+  };
+
+  // Keyboard Shortcuts (Ctrl+K for search, custom bindings for actions)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+      // Global search focus: Ctrl+K or Cmd+K
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         const searchInput = document.querySelector('input[type="text"]') as HTMLInputElement;
         if (searchInput) searchInput.focus();
+        return;
+      }
+
+      const activeShortcuts = state.shortcuts || DEFAULT_KEYBOARD_SHORTCUTS;
+
+      // Handle close modal key (e.g. Escape or custom binding)
+      if (matchesKey(e.key, activeShortcuts.closeModal)) {
+        const activeEl = document.activeElement as HTMLElement | null;
+        if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+          activeEl.blur();
+        }
+        setIsAddOpen(false);
+        setIsSettleOpen(false);
+        setIsSettingsOpen(false);
+        setIsShortcutsOpen(false);
+        setIsProOpen(false);
+        setIsAddFriendOpen(false);
+        setIsRecurringOpen(false);
+        setIsBalanceInfoOpen(false);
+        setIsNotificationsOpen(false);
         return;
       }
 
@@ -398,19 +859,19 @@ export function App() {
         return;
       }
 
-      if (e.key === 'n' || e.key === 'N') {
+      if (matchesKey(e.key, activeShortcuts.newExpense)) {
         e.preventDefault();
         handleOpenAddWithPreset('equal_split');
-      } else if (e.key === 's' || e.key === 'S') {
+      } else if (matchesKey(e.key, activeShortcuts.settle)) {
         e.preventDefault();
         setIsSettleOpen(true);
-      } else if (e.key === 'p' || e.key === 'P') {
+      } else if (matchesKey(e.key, activeShortcuts.perspective)) {
         e.preventDefault();
         handleTogglePerspective();
-      } else if (e.key === 't' || e.key === 'T') {
+      } else if (matchesKey(e.key, activeShortcuts.toggleTheme)) {
         e.preventDefault();
         handleToggleTheme();
-      } else if (e.key === '?' || (e.shiftKey && e.key === '/')) {
+      } else if (matchesKey(e.key, activeShortcuts.shortcutsGuide)) {
         e.preventDefault();
         setIsShortcutsOpen((prev) => !prev);
       }
@@ -418,12 +879,12 @@ export function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [state.transactions, state.user1.id, state.user2.id]);
+  }, [state.shortcuts, state.transactions, state.user1.id, state.user2.id]);
 
-  // Balance calculations (Dynamic based on current transactions)
+  // Balance calculations (Dynamic based on current transactions and active user perspective)
   const balanceSummary = useMemo(() => {
-    return calculateBalance(state.transactions, state.currentUser.id, state.user2.id);
-  }, [state.transactions, state.currentUser.id, state.user2.id]);
+    return calculateBalance(state.transactions, activeUser.id, activePartner.id);
+  }, [state.transactions, activeUser.id, activePartner.id]);
 
   const displayNetBalance = balanceSummary.netBalance;
   const displayLent = balanceSummary.owedToActiveUser;
@@ -431,9 +892,7 @@ export function App() {
   const displaySettled = balanceSummary.settledTotal;
   const displayTxCount = state.transactions.length;
 
-  const currentUserName = state.currentUser?.name && state.currentUser.name !== 'Me (Alex)'
-    ? state.currentUser.name
-    : 'MegaTron';
+  const currentUserName = activeUser?.name || 'MegaTron';
 
   // Filtered transactions for search query
   const filteredTransactions = useMemo(() => {
@@ -532,6 +991,18 @@ export function App() {
     };
   }, [state.transactions]);
 
+  if (!isAuthenticated) {
+    return (
+      <PinLoginScreen
+        currentUser={state.currentUser}
+        friends={state.friends}
+        onLoginSuccess={handleLoginSuccess}
+        sessionTerminatedReason={sessionTerminatedReason}
+        onClearTerminatedReason={() => setSessionTerminatedReason(null)}
+      />
+    );
+  }
+
   return (
     <div className={`min-h-screen flex flex-row overflow-x-hidden font-sans relative transition-colors duration-300 ${
       state.theme === 'dark'
@@ -546,6 +1017,7 @@ export function App() {
         activeNav={activeNav}
         onSelectNav={(nav) => {
           if (nav === 'settings') {
+            setSettingsSection('profiles');
             setIsSettingsOpen(true);
           } else {
             setActiveNav(nav);
@@ -558,13 +1030,22 @@ export function App() {
       <div className="flex-1 flex flex-col min-w-0 min-h-screen px-4 sm:px-6 py-2.5 relative z-10 overflow-y-auto">
         {/* Top Header Bar */}
         <TopBar
-          currentUser={state.currentUser}
+          currentUser={activeUser}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           onOpenNotifications={() => setIsNotificationsOpen((prev) => !prev)}
           onToggleTheme={handleToggleTheme}
-          onOpenProfile={() => setIsSettingsOpen(true)}
+          onOpenProfile={() => {
+            setSettingsSection('profiles');
+            setIsSettingsOpen(true);
+          }}
+          onLockApp={handleLockApp}
+          onChangePin={() => {
+            setSettingsSection('security');
+            setIsSettingsOpen(true);
+          }}
           theme={state.theme}
+          hasUnreadNotifications={state.transactions.some((t) => !acknowledgedNotifications.includes(t.id))}
         />
 
         {/* Notifications Popover Dropdown */}
@@ -572,8 +1053,23 @@ export function App() {
           isOpen={isNotificationsOpen}
           onClose={() => setIsNotificationsOpen(false)}
           transactions={state.transactions}
-          activeFriend={state.user2}
+          activeFriend={activePartner}
           currency={state.currency}
+          acknowledgedIds={acknowledgedNotifications}
+          onAcknowledge={handleAcknowledgeNotification}
+          onAcknowledgeAll={handleAcknowledgeAllNotifications}
+        />
+
+        {/* Approval Requests & 72-Hour Hold Dispute Banner */}
+        <ApprovalRequestsBanner
+          transactions={state.transactions}
+          currentUser={activeUser}
+          activeFriend={activePartner}
+          currency={state.currency}
+          onAccept={handleAcceptTransaction}
+          onDeny={handleDenyTransaction}
+          onVoteReview={handleVoteReview}
+          onFastForwardHold={handleFastForwardHold}
         />
 
         {/* View Switcher based on Sidebar Navigation */}
@@ -621,24 +1117,26 @@ export function App() {
 
                 {/* Row 2: Quick Actions */}
                 <QuickActionsRow
-                  onAddExpense={() => handleOpenAddWithPreset('equal_split', 'simple')}
-                  onSplitBill={() => handleOpenAddWithPreset('equal_split', 'itemized')}
+                  onAddExpense={() => handleOpenAddWithPreset('equal_split', 'simple', undefined, 'expense')}
+                  onLoan={() => handleOpenAddWithPreset('you_paid_full', 'simple', 'loan', 'loan')}
+                  onSplitBill={() => handleOpenAddWithPreset('equal_split', 'itemized', undefined, 'expense')}
                   onRecordPayment={() => setIsSettleOpen(true)}
                   onRecurringBills={() => setIsRecurringOpen(true)}
-                  onCustomSplit={() => handleOpenAddWithPreset('custom', 'simple')}
+                  onCustomSplit={() => handleOpenAddWithPreset('custom', 'simple', undefined, 'expense')}
                 />
 
                 {/* Row 3: Recent Transactions Card */}
                 <RecentTransactionsCard
                   transactions={filteredTransactions}
-                  currentUser={state.currentUser}
-                  activeFriend={state.user2}
+                  currentUser={activeUser}
+                  activeFriend={activePartner}
                   currency={state.currency}
                   onViewAll={() => setActiveNav('transactions')}
                   onSelectTransaction={(tx) => {
                     setEditingTransaction(tx);
                     setIsAddOpen(true);
                   }}
+                  onDeleteTransaction={handleDeleteTransaction}
                 />
               </div>
 
@@ -663,7 +1161,7 @@ export function App() {
 
                 {/* Friends Card */}
                 <FriendsCard
-                  friend={state.user2}
+                  friend={activePartner}
                   friendCount={state.friends.length || 1}
                   transactionCount={displayTxCount}
                   netBalance={displayNetBalance}
@@ -732,6 +1230,7 @@ export function App() {
             state={state}
             onSelectFriend={handleSelectFriend}
             onAddFriend={() => setIsAddFriendOpen(true)}
+            onDeleteFriend={handleDeleteFriend}
             onOpenSettle={(id) => {
               handleSelectFriend(id);
               setIsSettleOpen(true);
@@ -757,6 +1256,7 @@ export function App() {
               setEditingTransaction(tx);
               setIsAddOpen(true);
             }}
+            onDeleteTransaction={handleDeleteTransaction}
           />
         ) : activeNav === 'categories' ? (
           /* Full Categories Breakdown View */
@@ -767,6 +1267,7 @@ export function App() {
               setEditingTransaction(tx);
               setIsAddOpen(true);
             }}
+            onDeleteTransaction={handleDeleteTransaction}
             onAddNewExpense={(cat) => handleOpenAddWithPreset('equal_split', 'simple', cat)}
           />
         ) : null}
@@ -776,18 +1277,28 @@ export function App() {
       <AddTransactionModal
         isOpen={isAddOpen}
         onClose={() => setIsAddOpen(false)}
-        state={state}
+        state={{
+          ...state,
+          currentUser: activeUser,
+          user2: activePartner,
+        }}
         onSave={handleSaveTransaction}
+        onDelete={handleDeleteTransaction}
         editingTransaction={editingTransaction}
         initialSplitType={initialSplit}
         initialMode={addInitialMode}
         initialCategory={addInitialCategory}
+        initialTxType={addInitialTxType}
       />
 
       <SettleModal
         isOpen={isSettleOpen}
         onClose={() => setIsSettleOpen(false)}
-        state={state}
+        state={{
+          ...state,
+          currentUser: activeUser,
+          user2: activePartner,
+        }}
         onSettle={handleSettle}
       />
 
@@ -805,8 +1316,8 @@ export function App() {
         totalBorrowed={displayBorrowed}
         settledTotal={displaySettled}
         currency={state.currency}
-        activeUser={state.currentUser}
-        friend={state.user2}
+        activeUser={activeUser}
+        friend={activePartner}
         onOpenSettle={() => setIsSettleOpen(true)}
         onOpenShare={() => setIsShareOpen(true)}
       />
@@ -818,7 +1329,9 @@ export function App() {
         onUpdateState={handleUpdateState}
         onResetSampleData={handleResetSampleData}
         onClearAll={handleClearAll}
+        onDeleteFriend={handleDeleteFriend}
         onOpenShortcuts={() => setIsShortcutsOpen(true)}
+        initialSection={settingsSection}
       />
 
       <RecurringExpensesModal
@@ -833,6 +1346,9 @@ export function App() {
       <ShortcutsModal
         isOpen={isShortcutsOpen}
         onClose={() => setIsShortcutsOpen(false)}
+        shortcuts={state.shortcuts || DEFAULT_KEYBOARD_SHORTCUTS}
+        onUpdateShortcut={handleUpdateShortcut}
+        onResetShortcuts={handleResetShortcuts}
       />
 
       <ProModal

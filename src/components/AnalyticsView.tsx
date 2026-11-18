@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { AppState, Category } from '../types';
 import { CATEGORIES } from '../utils/categories';
 import { formatMoney, formatDate } from '../utils/formatters';
+import { InteractiveChartsHub } from './charts/InteractiveChartsHub';
 import {
   PieChart,
   TrendingUp,
@@ -215,6 +216,9 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ state, onUpdateBud
           </p>
         </div>
       </div>
+
+      {/* Multi-Chart Analytics Suite (Dropdown with Pie, Bar, Histogram, and 7 other crucial charts) */}
+      <InteractiveChartsHub state={state} />
 
       {/* Monthly Budget Tracker Card */}
       <div className="p-5 rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 shadow-sm">

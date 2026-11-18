@@ -11,10 +11,18 @@ export interface UserProfile {
   name: string;
   avatar: string;
   color: string;
+  pin?: string; // 4-digit user ID / PIN (e.g. '8181')
   upiId?: string;
   paypalUser?: string;
   venmoUser?: string;
 }
+
+export type TransactionApprovalStatus =
+  | 'approved'
+  | 'pending_approval'
+  | 'on_hold'
+  | 'disputed_review'
+  | 'rejected';
 
 export type SplitType = 'you_paid_full' | 'friend_paid_full' | 'equal_split' | 'custom';
 
@@ -52,6 +60,14 @@ export interface Transaction {
   receiptUrl?: string; // Optional image attachment
   items?: ItemizedSplitItem[];
   isSettlement?: boolean;
+  isLoan?: boolean;
+  type?: 'expense' | 'loan' | 'settlement';
+  approvalStatus?: TransactionApprovalStatus; // 'approved' | 'pending_approval' | 'on_hold' | 'disputed_review' | 'rejected'
+  approvalRequestedBy?: string; // User ID who initiated transaction
+  approvalRespondentId?: string; // User ID who must approve/deny
+  deniedAt?: number; // Timestamp (ms) when denied
+  lockedUntil?: number; // Timestamp (ms) when 72h hold expires
+  reviewVotes?: Record<string, boolean>; // [userId]: true | false
   createdAt: number;
 }
 
@@ -70,6 +86,24 @@ export interface RecurringExpense {
   lastLogged?: string;
 }
 
+export interface KeyboardShortcuts {
+  newExpense: string;
+  settle: string;
+  perspective: string;
+  toggleTheme: string;
+  shortcutsGuide: string;
+  closeModal: string;
+}
+
+export const DEFAULT_KEYBOARD_SHORTCUTS: KeyboardShortcuts = {
+  newExpense: 'N',
+  settle: 'S',
+  perspective: 'P',
+  toggleTheme: 'T',
+  shortcutsGuide: '?',
+  closeModal: 'Escape',
+};
+
 export interface AppState {
   currentUser: UserProfile; // Primary user ("You")
   friends: UserProfile[]; // All friends
@@ -83,4 +117,5 @@ export interface AppState {
   monthlyBudgets: Record<string, number>; // [friendId]: monthly budget
   recurringExpenses: RecurringExpense[];
   theme: 'dark' | 'light';
+  shortcuts?: KeyboardShortcuts;
 }

@@ -1,5 +1,5 @@
 import React from 'react';
-import { UserPlus, CheckCircle2, Share2, ArrowRight, UserCheck } from 'lucide-react';
+import { UserPlus, CheckCircle2, Share2, ArrowRight, UserCheck, Trash2 } from 'lucide-react';
 import { AppState } from '../types';
 import { calculateBalance, formatMoney } from '../utils/formatters';
 
@@ -7,6 +7,7 @@ interface FriendsViewProps {
   state: AppState;
   onSelectFriend: (friendId: string) => void;
   onAddFriend: () => void;
+  onDeleteFriend: (friendId: string) => void;
   onOpenSettle: (friendId: string) => void;
   onOpenShare: (friendId: string) => void;
   onViewTransactions: (friendId: string) => void;
@@ -17,6 +18,7 @@ export const FriendsView: React.FC<FriendsViewProps> = ({
   state,
   onSelectFriend,
   onAddFriend,
+  onDeleteFriend,
   onOpenSettle,
   onOpenShare,
   onViewTransactions,
@@ -76,9 +78,14 @@ export const FriendsView: React.FC<FriendsViewProps> = ({
                     {friend.name ? friend.name.charAt(0).toUpperCase() : 'F'}
                   </div>
                   <div className="flex flex-col min-w-0">
-                    <span className="text-base font-bold truncate">
-                      {friend.name}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-base font-bold truncate">
+                        {friend.name}
+                      </span>
+                      <span className="px-2 py-0.5 rounded-lg bg-purple-100 dark:bg-purple-950/80 border border-purple-200 dark:border-purple-500/40 text-[10px] font-mono font-bold text-purple-700 dark:text-cyan-300">
+                        ID: {friend.pin || '1234'}
+                      </span>
+                    </div>
                     <span className="text-xs text-slate-500 dark:text-slate-400">
                       {txs.length} transactions recorded
                     </span>
@@ -130,7 +137,7 @@ export const FriendsView: React.FC<FriendsViewProps> = ({
                 <button
                   type="button"
                   onClick={() => onOpenSettle(friend.id)}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-xs font-semibold text-slate-800 dark:text-slate-200 transition-colors"
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-xs font-semibold text-slate-800 dark:text-slate-200 transition-colors"
                 >
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
                   <span>Settle</span>
@@ -139,7 +146,7 @@ export const FriendsView: React.FC<FriendsViewProps> = ({
                 <button
                   type="button"
                   onClick={() => onOpenShare(friend.id)}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-xs font-semibold text-slate-800 dark:text-slate-200 transition-colors"
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-xs font-semibold text-slate-800 dark:text-slate-200 transition-colors"
                 >
                   <Share2 className="w-3.5 h-3.5 text-[#0284c7] dark:text-cyan-400" />
                   <span>Share</span>
@@ -148,10 +155,19 @@ export const FriendsView: React.FC<FriendsViewProps> = ({
                 <button
                   type="button"
                   onClick={() => onViewTransactions(friend.id)}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-xs font-semibold text-slate-800 dark:text-slate-200 transition-colors"
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-xs font-semibold text-slate-800 dark:text-slate-200 transition-colors"
                 >
                   <ArrowRight className="w-3.5 h-3.5 text-purple-500" />
                   <span>Ledger</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => onDeleteFriend(friend.id)}
+                  className="p-2 rounded-xl text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                  title={`Delete friend ${friend.name}`}
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>

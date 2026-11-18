@@ -186,7 +186,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* NetZero Pro Card at bottom of sidebar */}
-      <div className="rounded-3xl p-4 bg-gradient-to-br from-[#faf8ff] to-[#fff7ed] dark:bg-[#140d25]/90 border border-[#fed7aa] dark:border-purple-500/30 shadow-[0_4px_16px_rgba(251,146,60,0.12)] dark:shadow-[0_0_20px_rgba(168,85,247,0.15)] flex flex-col gap-3">
+      <div className="rounded-3xl p-4 bg-gradient-to-br from-[#faf8ff] to-[#fff7ed] dark:from-[#1a0f33] dark:to-[#0f0722] border border-[#fed7aa] dark:border-purple-500/30 shadow-[0_4px_16px_rgba(251,146,60,0.12)] dark:shadow-[0_0_20px_rgba(168,85,247,0.15)] flex flex-col gap-3">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-2xl bg-[#fff4ed] dark:bg-purple-950/80 border border-[#fed7aa] dark:border-purple-500/40 flex items-center justify-center text-[#ea580c] dark:text-purple-400 shadow-[0_0_12px_rgba(251,146,60,0.25)] dark:shadow-[0_0_14px_rgba(168,85,247,0.5)] shrink-0">
             <Crown className="w-5 h-5 stroke-[2] fill-[#fed7aa] dark:fill-purple-400/25" />
@@ -195,7 +195,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <h4 className="text-sm font-bold text-slate-900 dark:text-white leading-tight">
               NetZero Pro
             </h4>
-            <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+            <p className="text-[10px] text-slate-500 dark:text-purple-200/70 mt-0.5 font-medium">
               Backups • Insights • More
             </p>
           </div>

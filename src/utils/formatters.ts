@@ -27,6 +27,16 @@ export function calculateBalance(
   let settledTotal = 0;
 
   for (const t of transactions) {
+    // Only approved transactions count toward balances (on hold / pending / rejected do not count)
+    if (
+      t.approvalStatus === 'pending_approval' ||
+      t.approvalStatus === 'on_hold' ||
+      t.approvalStatus === 'disputed_review' ||
+      t.approvalStatus === 'rejected'
+    ) {
+      continue;
+    }
+
     if (t.isSettlement) {
       settledTotal += t.amount;
       // When a settlement occurs:

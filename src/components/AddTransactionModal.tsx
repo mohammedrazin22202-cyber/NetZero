@@ -11,6 +11,7 @@ import {
   Camera,
   ListPlus,
   Trash2,
+  HandCoins,
 } from 'lucide-react';
 
 interface AddTransactionModalProps {
@@ -18,10 +19,12 @@ interface AddTransactionModalProps {
   onClose: () => void;
   state: AppState;
   onSave: (tx: Omit<Transaction, 'id' | 'createdAt'>) => void;
+  onDelete?: (id: string) => void;
   editingTransaction?: Transaction | null;
   initialSplitType?: SplitType;
   initialMode?: 'simple' | 'itemized';
   initialCategory?: Category;
+  initialTxType?: 'expense' | 'loan';
 }
 
 const COMMON_PRESETS: { title: string; category: Category }[] = [
@@ -31,8 +34,15 @@ const COMMON_PRESETS: { title: string; category: Category }[] = [
   { title: '🛒 Groceries', category: 'groceries' },
   { title: '🎬 Movie Tickets', category: 'entertainment' },
   { title: '🍻 Drinks', category: 'drinks' },
-  { title: '💵 Cash Loan', category: 'loan' },
   { title: '🍕 Pizza', category: 'food' },
+];
+
+const LOAN_PRESETS: { title: string; note: string }[] = [
+  { title: '💵 Cash Handover', note: 'Direct cash handed over' },
+  { title: '⚡ Online Transfer Loan', note: 'Bank / UPI / Wire transfer' },
+  { title: '🏠 Rent Advance Loan', note: 'Advance for rent / deposit' },
+  { title: '🛒 Emergency Cash Loan', note: 'Short-term emergency cash' },
+  { title: '✈️ Travel Advance', note: 'Travel / tickets advance' },
 ];
 
 export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
@@ -40,14 +50,17 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
   onClose,
   state,
   onSave,
+  onDelete,
   editingTransaction,
   initialSplitType = 'equal_split',
   initialMode = 'simple',
   initialCategory,
+  initialTxType = 'expense',
 }) => {
   const activeUser = state.activeUserId === state.user1.id ? state.user1 : state.user2;
   const friend = state.activeUserId === state.user1.id ? state.user2 : state.user1;
 
+  const [txType, setTxType] = useState<'expense' | 'loan'>('expense');
   const [entryMode, setEntryMode] = useState<'simple' | 'itemized'>('simple');
   const [title, setTitle] = useState('');
   const [amountStr, setAmountStr] = useState('');
@@ -80,6 +93,12 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
     if (!isOpen) return;
 
     if (editingTransaction) {
+      const isLoanTx = Boolean(
+        editingTransaction.isLoan ||
+        editingTransaction.type === 'loan' ||
+        editingTransaction.category === 'loan'
+      );
+      setTxType(isLoanTx ? 'loan' : 'expense');
       setTitle(editingTransaction.title);
       setAmountStr(editingTransaction.amount.toString());
       setPayerId(editingTransaction.paidBy);
@@ -92,29 +111,33 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
       setItems(editingTransaction.items || []);
       setEntryMode(editingTransaction.items && editingTransaction.items.length > 0 ? 'itemized' : 'simple');
     } else {
-      setTitle('');
+      const isInitialLoan = initialTxType === 'loan' || initialCategory === 'loan';
+      setTxType(isInitialLoan ? 'loan' : 'expense');
+      setTitle(isInitialLoan ? 'Cash Loan' : '');
       setAmountStr('');
       const defaultPayerId = initialSplitType === 'friend_paid_full' ? friend.id : activeUser.id;
       setPayerId(defaultPayerId);
-      setSplitType(initialSplitType);
+      setSplitType(isInitialLoan ? (defaultPayerId === activeUser.id ? 'you_paid_full' : 'friend_paid_full') : initialSplitType);
       setCustomOwedStr('');
-      setCategory(initialCategory || 'food');
+      setCategory(isInitialLoan ? 'loan' : (initialCategory || 'food'));
       setDate(getLocalDateString());
       setNote('');
       setReceiptUrl(undefined);
       setItems([]);
       setEntryMode(initialMode || 'simple');
     }
-  }, [editingTransaction, initialSplitType, initialMode, initialCategory, activeUser.id, friend.id, isOpen]);
+  }, [editingTransaction, initialSplitType, initialMode, initialCategory, initialTxType, activeUser.id, friend.id, isOpen]);
 
   if (!isOpen) return null;
+
+  const isLoan = txType === 'loan';
 
   // Calculate itemized sums if in itemized mode
   let itemizedTotal = 0;
   let itemizedFriendOwed = 0;
   let itemizedActiveUserOwed = 0;
 
-  if (entryMode === 'itemized' && items.length > 0) {
+  if (!isLoan && entryMode === 'itemized' && items.length > 0) {
     for (const it of items) {
       itemizedTotal += it.amount;
       if (it.assignedTo === 'friend') {
@@ -130,13 +153,15 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
   }
 
   const totalAmount =
-    entryMode === 'itemized' && items.length > 0
+    !isLoan && entryMode === 'itemized' && items.length > 0
       ? Math.round(itemizedTotal * 100) / 100
       : parseFloat(amountStr) || 0;
 
   // Calculate owed amount based on split selection
   let calculatedOwed = 0;
-  if (entryMode === 'itemized' && items.length > 0) {
+  if (isLoan) {
+    calculatedOwed = totalAmount; // 100% of loan is owed
+  } else if (entryMode === 'itemized' && items.length > 0) {
     calculatedOwed =
       payerId === activeUser.id ? itemizedFriendOwed : itemizedActiveUserOwed;
   } else if (splitType === 'equal_split') {
@@ -162,13 +187,6 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
     } else if (newPayerId === friend.id && splitType === 'you_paid_full') {
       setSplitType('friend_paid_full');
     }
-  };
-
-  const handleSelectPreset = (preset: { title: string; category: Category }) => {
-    triggerHaptic('light');
-    const clean = preset.title.replace(/^[^\w\s]+\s*/, '');
-    setTitle(clean);
-    setCategory(preset.category);
   };
 
   const handleAddItem = (e: React.FormEvent) => {
@@ -245,6 +263,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
   };
 
   const isCustomInvalid =
+    !isLoan &&
     splitType === 'custom' &&
     entryMode === 'simple' &&
     (calculatedOwed <= 0 || (totalAmount > 0 && calculatedOwed > totalAmount));
@@ -262,17 +281,21 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
     const roundedOwed = Math.round(calculatedOwed * 100) / 100;
 
     onSave({
-      title: title.trim(),
+      title: title.trim() || (isLoan ? 'Cash Loan' : 'Expense'),
       amount: roundedTotal,
       paidBy: payerId,
       payerOwedAmount: roundedOwed,
       beneficiaryId,
-      splitType: entryMode === 'itemized' ? 'custom' : splitType,
-      category,
+      splitType: isLoan
+        ? (payerId === activeUser.id ? 'you_paid_full' : 'friend_paid_full')
+        : (entryMode === 'itemized' ? 'custom' : splitType),
+      category: isLoan ? 'loan' : category,
       date,
       note: note.trim(),
       receiptUrl,
-      items: items.length > 0 ? items : undefined,
+      items: !isLoan && items.length > 0 ? items : undefined,
+      isLoan,
+      type: isLoan ? 'loan' : 'expense',
     });
     onClose();
   };
@@ -288,9 +311,11 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-center gap-2">
-            <span className="text-xl">📝</span>
+            <span className="text-xl">{isLoan ? '🤝' : '📝'}</span>
             <h3 className="text-base font-bold text-slate-900 dark:text-white">
-              {editingTransaction ? 'Edit Transaction' : 'Record New Expense'}
+              {editingTransaction
+                ? isLoan ? 'Edit Cash Loan' : 'Edit Transaction'
+                : isLoan ? 'Record Cash Loan' : 'Record New Expense'}
             </h3>
           </div>
           <button
@@ -301,45 +326,87 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
           </button>
         </div>
 
-        {/* Mode Switcher Tabs */}
-        <div className="flex border-b border-slate-100 dark:border-slate-800/80 bg-slate-50 dark:bg-slate-950/40 px-6 pt-2">
-          <button
-            type="button"
-            onClick={() => setEntryMode('simple')}
-            className={`pb-2.5 px-3 text-xs font-bold border-b-2 transition-all ${
-              entryMode === 'simple'
-                ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400'
-                : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
-            }`}
-          >
-            Quick Split (50/50, 100%)
-          </button>
-          <button
-            type="button"
-            onClick={() => setEntryMode('itemized')}
-            className={`pb-2.5 px-3 text-xs font-bold border-b-2 transition-all flex items-center gap-1.5 ${
-              entryMode === 'itemized'
-                ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400'
-                : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
-            }`}
-          >
-            <ListPlus className="w-3.5 h-3.5" />
-            <span>Itemized Checklist</span>
-            {items.length > 0 && (
-              <span className="px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px]">
-                {items.length}
-              </span>
-            )}
-          </button>
+        {/* Transaction Type Switcher: Expense vs Loan */}
+        <div className="px-6 pt-3 pb-2.5 bg-slate-50 dark:bg-slate-950/40 border-b border-slate-100 dark:border-slate-800/80">
+          <div className="grid grid-cols-2 p-1 rounded-2xl bg-slate-200/70 dark:bg-slate-800/80 border border-slate-300/50 dark:border-slate-700/60">
+            <button
+              type="button"
+              onClick={() => {
+                triggerHaptic('light');
+                setTxType('expense');
+                if (category === 'loan') setCategory('food');
+                if (title === 'Cash Loan') setTitle('');
+              }}
+              className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                !isLoan
+                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <span>🛍️ Shared Expense</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                triggerHaptic('light');
+                setTxType('loan');
+                setCategory('loan');
+                if (!title) setTitle('Cash Loan');
+                setSplitType(payerId === activeUser.id ? 'you_paid_full' : 'friend_paid_full');
+              }}
+              className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                isLoan
+                  ? 'bg-emerald-600 dark:bg-emerald-500 text-white dark:text-slate-950 shadow-md font-extrabold'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <HandCoins className="w-3.5 h-3.5" />
+              <span>🤝 Cash Loan</span>
+            </button>
+          </div>
         </div>
+
+        {/* Mode Switcher Tabs (Shown only for Expense) */}
+        {!isLoan && (
+          <div className="flex border-b border-slate-100 dark:border-slate-800/80 bg-slate-50 dark:bg-slate-950/40 px-6 pt-2">
+            <button
+              type="button"
+              onClick={() => setEntryMode('simple')}
+              className={`pb-2.5 px-3 text-xs font-bold border-b-2 transition-all ${
+                entryMode === 'simple'
+                  ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400'
+                  : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+              }`}
+            >
+              Quick Split (50/50, 100%)
+            </button>
+            <button
+              type="button"
+              onClick={() => setEntryMode('itemized')}
+              className={`pb-2.5 px-3 text-xs font-bold border-b-2 transition-all flex items-center gap-1.5 ${
+                entryMode === 'itemized'
+                  ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400'
+                  : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+              }`}
+            >
+              <ListPlus className="w-3.5 h-3.5" />
+              <span>Itemized Checklist</span>
+              {items.length > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px]">
+                  {items.length}
+                </span>
+              )}
+            </button>
+          </div>
+        )}
 
         {/* Scrollable Form Body */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-          {/* Amount input & Quick Chips (if simple) */}
-          {entryMode === 'simple' ? (
+          {/* Amount input & Quick Chips */}
+          {isLoan || entryMode === 'simple' ? (
             <div>
               <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
-                Total Amount
+                {isLoan ? 'Loan Amount' : 'Total Amount'}
               </label>
               <div className="relative flex items-center">
                 <span className="absolute left-4 text-2xl font-bold text-slate-400 dark:text-slate-500">
@@ -497,23 +564,29 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
           {/* Title & Quick Suggestions */}
           <div>
             <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
-              Description / Outing Title
+              {isLoan ? 'Loan Purpose / Reference' : 'Description / Outing Title'}
             </label>
             <input
               type="text"
               required
-              placeholder="e.g. Dinner, Uber, Groceries..."
+              placeholder={isLoan ? 'e.g. Cash Loan, Rent Advance, Emergency...' : 'e.g. Dinner, Uber, Groceries...'}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700/80 rounded-2xl text-sm font-medium text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-600 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
             />
-            {/* Quick title presets */}
+            {/* Quick presets */}
             <div className="flex items-center gap-1.5 mt-2 overflow-x-auto pb-1 scrollbar-none">
-              {COMMON_PRESETS.map((preset) => (
+              {(isLoan ? LOAN_PRESETS : COMMON_PRESETS).map((preset) => (
                 <button
                   key={preset.title}
                   type="button"
-                  onClick={() => handleSelectPreset(preset)}
+                  onClick={() => {
+                    triggerHaptic('light');
+                    const clean = preset.title.replace(/^[^\w\s]+\s*/, '');
+                    setTitle(clean);
+                    if ('category' in preset) setCategory((preset as any).category);
+                    if ('note' in preset && !note) setNote((preset as any).note);
+                  }}
                   className="whitespace-nowrap px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-700 text-xs text-slate-700 dark:text-slate-300 font-medium transition-colors"
                 >
                   {preset.title}
@@ -522,42 +595,62 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
             </div>
           </div>
 
-          {/* Who Paid */}
+          {/* Who Paid / Who Lent */}
           <div>
             <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
-              Who Paid Upfront?
+              {isLoan ? 'Who is Lending the Money?' : 'Who Paid Upfront?'}
             </label>
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={() => handlePayerChange(activeUser.id)}
-                className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-2xl border text-xs font-bold transition-all ${
+                onClick={() => {
+                  handlePayerChange(activeUser.id);
+                  if (isLoan) setSplitType('you_paid_full');
+                }}
+                className={`flex flex-col items-center justify-center p-3 rounded-2xl border text-xs font-bold transition-all text-center ${
                   payerId === activeUser.id
                     ? 'bg-emerald-500/20 border-emerald-500 text-emerald-700 dark:text-emerald-300 shadow-sm'
                     : 'bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-700'
                 }`}
               >
-                <span>{activeUser.avatar}</span>
-                <span>You Paid ({activeUser.name.split(' ')[0]})</span>
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <span>{activeUser.avatar}</span>
+                  <span>{isLoan ? 'I am Lending' : `You Paid (${activeUser.name.split(' ')[0]})`}</span>
+                </div>
+                {isLoan && (
+                  <span className="text-[10px] font-normal text-slate-500 dark:text-slate-400">
+                    {friend.name.split(' ')[0]} owes 100%
+                  </span>
+                )}
               </button>
 
               <button
                 type="button"
-                onClick={() => handlePayerChange(friend.id)}
-                className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-2xl border text-xs font-bold transition-all ${
+                onClick={() => {
+                  handlePayerChange(friend.id);
+                  if (isLoan) setSplitType('friend_paid_full');
+                }}
+                className={`flex flex-col items-center justify-center p-3 rounded-2xl border text-xs font-bold transition-all text-center ${
                   payerId === friend.id
                     ? 'bg-indigo-500/20 border-indigo-500 text-indigo-700 dark:text-indigo-300 shadow-sm'
                     : 'bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-700'
                 }`}
               >
-                <span>{friend.avatar}</span>
-                <span>{friend.name} Paid</span>
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <span>{friend.avatar}</span>
+                  <span>{isLoan ? `${friend.name.split(' ')[0]} is Lending` : `${friend.name} Paid`}</span>
+                </div>
+                {isLoan && (
+                  <span className="text-[10px] font-normal text-slate-500 dark:text-slate-400">
+                    You owe 100%
+                  </span>
+                )}
               </button>
             </div>
           </div>
 
-          {/* Split Mode (shown if simple) */}
-          {entryMode === 'simple' && (
+          {/* Split Mode (shown only if expense and simple) */}
+          {!isLoan && entryMode === 'simple' && (
             <div>
               <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
                 How Should This Be Split?
@@ -633,15 +726,31 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
             </div>
           )}
 
-          {/* Split description feedback box */}
-          <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
-            <span className="text-slate-500 dark:text-slate-400">
-              {payerId === activeUser.id
-                ? `${friend.name} will owe you:`
-                : `You will owe ${friend.name}:`}
-            </span>
+          {/* Split / Loan description feedback box */}
+          <div className="p-3.5 rounded-2xl bg-emerald-500/10 dark:bg-emerald-950/40 border border-emerald-500/30 flex items-center justify-between text-xs">
+            <div>
+              <p className="font-bold text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
+                <span>{isLoan ? '🤝' : '⚖️'}</span>
+                <span>
+                  {isLoan
+                    ? payerId === activeUser.id
+                      ? `You are lending to ${friend.name}`
+                      : `${friend.name} is lending to you`
+                    : payerId === activeUser.id
+                    ? `${friend.name} will owe you:`
+                    : `You will owe ${friend.name}:`}
+                </span>
+              </p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                {isLoan
+                  ? payerId === activeUser.id
+                    ? `${friend.name} will repay 100% of this loan`
+                    : `You will repay 100% of this loan`
+                  : 'Calculated split amount'}
+              </p>
+            </div>
             <span
-              className={`font-bold text-sm ${
+              className={`font-black text-base ${
                 payerId === activeUser.id
                   ? 'text-emerald-600 dark:text-emerald-400'
                   : 'text-rose-600 dark:text-rose-400'
@@ -652,31 +761,33 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
             </span>
           </div>
 
-          {/* Category */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
-              Category
-            </label>
-            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-              {Object.values(CATEGORIES).map((cat) => (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => setCategory(cat.id)}
-                  className={`flex flex-col items-center justify-center p-2 rounded-xl border text-xs font-medium transition-all ${
-                    category === cat.id
-                      ? `${cat.bgColor} font-bold ring-1 ring-emerald-500/50`
-                      : 'bg-slate-50 dark:bg-slate-950/50 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-                  }`}
-                >
-                  <span className="text-base">{cat.emoji}</span>
-                  <span className="text-[10px] mt-0.5 truncate max-w-[70px]">
-                    {cat.label.split(' ')[0]}
-                  </span>
-                </button>
-              ))}
+          {/* Category (Only shown if Expense) */}
+          {!isLoan && (
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
+                Category
+              </label>
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                {Object.values(CATEGORIES).map((cat) => (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => setCategory(cat.id)}
+                    className={`flex flex-col items-center justify-center p-2 rounded-xl border text-xs font-medium transition-all ${
+                      category === cat.id
+                        ? `${cat.bgColor} font-bold ring-1 ring-emerald-500/50`
+                        : 'bg-slate-50 dark:bg-slate-950/50 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                    }`}
+                  >
+                    <span className="text-base">{cat.emoji}</span>
+                    <span className="text-[10px] mt-0.5 truncate max-w-[70px]">
+                      {cat.label.split(' ')[0]}
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Date & Note */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -779,22 +890,49 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
         </form>
 
         {/* Footer Actions */}
-        <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/90 flex items-center justify-end gap-2.5">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={isSubmitDisabled}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-bold text-slate-950 shadow-lg shadow-emerald-500/20 transition-all active:scale-95"
-          >
-            <Check className="w-4 h-4" />
-            <span>{editingTransaction ? 'Save Changes' : 'Record Transaction'}</span>
-          </button>
+        <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/90 flex items-center justify-between gap-2.5">
+          {editingTransaction && onDelete ? (
+            <button
+              type="button"
+              onClick={() => {
+                onDelete(editingTransaction.id);
+                onClose();
+              }}
+              className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40 text-xs font-semibold border border-rose-200 dark:border-rose-500/30 transition-colors"
+              title="Delete this transaction"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span>Delete</span>
+            </button>
+          ) : (
+            <div />
+          )}
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={isSubmitDisabled}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-bold text-slate-950 shadow-lg shadow-emerald-500/20 transition-all active:scale-95"
+            >
+              <Check className="w-4 h-4" />
+              <span>
+                {editingTransaction
+                  ? isLoan
+                    ? 'Save Loan Changes'
+                    : 'Save Changes'
+                  : isLoan
+                  ? 'Record Cash Loan'
+                  : 'Record Transaction'}
+              </span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

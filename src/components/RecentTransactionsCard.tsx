@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRight, Utensils, Clapperboard, Car, Receipt, Coffee, ShoppingBag } from 'lucide-react';
+import { ArrowRight, Utensils, Clapperboard, Car, Receipt, Coffee, ShoppingBag, Trash2, HandCoins } from 'lucide-react';
 import { Transaction, Currency, UserProfile } from '../types';
 
 interface RecentTransactionsCardProps {
@@ -9,6 +9,7 @@ interface RecentTransactionsCardProps {
   currency: Currency;
   onViewAll?: () => void;
   onSelectTransaction?: (tx: Transaction) => void;
+  onDeleteTransaction?: (id: string) => void;
 }
 
 export const RecentTransactionsCard: React.FC<RecentTransactionsCardProps> = ({
@@ -18,6 +19,7 @@ export const RecentTransactionsCard: React.FC<RecentTransactionsCardProps> = ({
   currency,
   onViewAll,
   onSelectTransaction,
+  onDeleteTransaction,
 }) => {
   const recent = transactions.slice(0, 3);
 
@@ -53,6 +55,12 @@ export const RecentTransactionsCard: React.FC<RecentTransactionsCardProps> = ({
       return {
         icon: <ShoppingBag className="w-4 h-4 stroke-[2.2]" />,
         bg: 'bg-[#fdf2f8] dark:bg-[#2e0921]/90 border border-[#f472b6] dark:border-pink-500/50 text-[#db2777] dark:text-pink-400',
+      };
+    }
+    if (c === 'loan' || t.toLowerCase().includes('loan')) {
+      return {
+        icon: <HandCoins className="w-4 h-4 stroke-[2.2]" />,
+        bg: 'bg-emerald-50 dark:bg-emerald-950/90 border border-emerald-400 dark:border-emerald-500/50 text-emerald-600 dark:text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.25)]',
       };
     }
     return {
@@ -107,6 +115,7 @@ export const RecentTransactionsCard: React.FC<RecentTransactionsCardProps> = ({
           recent.map((tx) => {
             const isUserPayer = tx.paidBy === currentUser.id;
             const friendName = activeFriend.name.split(' ')[0] || 'Sam';
+            const isLoan = Boolean(tx.isLoan || tx.category === 'loan' || tx.type === 'loan');
             const { icon, bg } = getCategoryDetails(tx.category, tx.title);
             const dateLabel = formatShortDate(tx.date);
 
@@ -123,26 +132,73 @@ export const RecentTransactionsCard: React.FC<RecentTransactionsCardProps> = ({
                   </div>
 
                   <div className="flex flex-col min-w-0">
-                    <span className="text-sm font-bold text-slate-900 dark:text-white truncate group-hover:text-[#0284c7] dark:group-hover:text-cyan-300 transition-colors">
-                      {tx.title}
-                    </span>
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-sm font-bold text-slate-900 dark:text-white truncate group-hover:text-[#0284c7] dark:group-hover:text-cyan-300 transition-colors">
+                        {tx.title}
+                      </span>
+                      {isLoan && (
+                        <span className="px-1.5 py-0.2 rounded-md bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-[9px] font-bold border border-emerald-500/30 shrink-0">
+                          Loan
+                        </span>
+                      )}
+                      {tx.approvalStatus === 'pending_approval' && (
+                        <span className="px-1.5 py-0.2 rounded-md bg-amber-500/20 text-amber-700 dark:text-amber-300 text-[9px] font-bold border border-amber-500/30 shrink-0">
+                          ⏳ Pending
+                        </span>
+                      )}
+                      {tx.approvalStatus === 'on_hold' && (
+                        <span className="px-1.5 py-0.2 rounded-md bg-orange-500/20 text-orange-700 dark:text-orange-300 text-[9px] font-bold border border-orange-500/30 shrink-0">
+                          🔒 Hold
+                        </span>
+                      )}
+                      {tx.approvalStatus === 'disputed_review' && (
+                        <span className="px-1.5 py-0.2 rounded-md bg-purple-500/20 text-purple-700 dark:text-purple-300 text-[9px] font-bold border border-purple-500/30 shrink-0">
+                          ⚖️ Review
+                        </span>
+                      )}
+                      {tx.approvalStatus === 'rejected' && (
+                        <span className="px-1.5 py-0.2 rounded-md bg-rose-500/20 text-rose-700 dark:text-rose-300 text-[9px] font-bold border border-rose-500/30 shrink-0">
+                          ❌ Rejected
+                        </span>
+                      )}
+                    </div>
                     <span className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                      {isUserPayer ? `You paid  •  with ${friendName}` : `${friendName} paid  •  for you`}
+                      {isLoan
+                        ? isUserPayer
+                          ? `You loaned  •  to ${friendName}`
+                          : `${friendName} loaned  •  to you`
+                        : isUserPayer
+                        ? `You paid  •  with ${friendName}`
+                        : `${friendName} paid  •  for you`}
                     </span>
                   </div>
                 </div>
 
-                {/* Right: Date & Amount */}
-                <div className="flex items-center gap-6 shrink-0">
+                {/* Right: Date, Amount & Delete */}
+                <div className="flex items-center gap-3 sm:gap-4 shrink-0">
                   <span className="text-xs text-slate-500 dark:text-slate-400 min-w-[45px] text-right">
                     {dateLabel}
                   </span>
 
-                  <span className={`text-base font-bold min-w-[70px] text-right ${
+                  <span className={`text-base font-bold min-w-[65px] text-right ${
                     isUserPayer ? 'text-[#0284c7] dark:text-cyan-400' : 'text-[#ea580c] dark:text-[#e879f9]'
                   }`}>
                     {currency.symbol}{tx.amount.toFixed(2)}
                   </span>
+
+                  {onDeleteTransaction && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteTransaction(tx.id);
+                      }}
+                      className="p-1 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 opacity-70 hover:opacity-100 transition-all"
+                      title="Delete transaction"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
               </div>
             );

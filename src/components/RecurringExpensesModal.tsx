@@ -274,7 +274,11 @@ export const RecurringExpensesModal: React.FC<RecurringExpensesModalProps> = ({
 
                       <button
                         type="button"
-                        onClick={() => onDeleteRecurring(item.id)}
+                        onClick={() => {
+                          if (window.confirm(`Delete recurring bill "${item.title}"?`)) {
+                            onDeleteRecurring(item.id);
+                          }
+                        }}
                         className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 transition-colors"
                         title="Delete recurring bill"
                       >

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Bell, ChevronDown, Moon } from 'lucide-react';
+import { Search, Bell, ChevronDown, Moon, Lock, KeyRound } from 'lucide-react';
 import { UserProfile } from '../types';
 
 interface TopBarProps {
@@ -9,7 +9,10 @@ interface TopBarProps {
   onOpenNotifications?: () => void;
   onToggleTheme?: () => void;
   onOpenProfile?: () => void;
+  onLockApp?: () => void;
+  onChangePin?: () => void;
   theme?: 'dark' | 'light';
+  hasUnreadNotifications?: boolean;
 }
 
 export const TopBar: React.FC<TopBarProps> = ({
@@ -19,7 +22,10 @@ export const TopBar: React.FC<TopBarProps> = ({
   onOpenNotifications,
   onToggleTheme,
   onOpenProfile,
+  onLockApp,
+  onChangePin,
   theme = 'dark',
+  hasUnreadNotifications = true,
 }) => {
   return (
     <header className="w-full flex items-center justify-between gap-4 py-2 select-none">
@@ -48,6 +54,32 @@ export const TopBar: React.FC<TopBarProps> = ({
 
       {/* Right Icons: Notifications, Theme Toggle, Profile */}
       <div className="flex items-center gap-3">
+        {/* User Lock & Change PIN Button */}
+        <div className="flex items-center gap-1">
+          {onLockApp && (
+            <button
+              type="button"
+              onClick={onLockApp}
+              title={`Logged in as ${currentUser.name}. Click to Lock / Switch User.`}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white dark:bg-[#150d27]/90 border border-purple-200 dark:border-purple-500/30 text-xs font-semibold text-slate-700 dark:text-purple-200 hover:border-[#38bdf8] dark:hover:border-purple-400 transition-all active:scale-95 shadow-sm"
+            >
+              <Lock className="w-3.5 h-3.5 text-[#0284c7] dark:text-cyan-400" />
+              <span className="font-semibold text-xs truncate max-w-[100px]">{currentUser.name}</span>
+            </button>
+          )}
+
+          {onChangePin && (
+            <button
+              type="button"
+              onClick={onChangePin}
+              title="Change your 4-digit PIN / User ID"
+              className="p-2 rounded-full text-slate-400 hover:text-cyan-400 hover:bg-purple-100/50 dark:hover:bg-white/5 transition-all"
+            >
+              <KeyRound className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+
         {/* Notification Bell */}
         <button
           type="button"
@@ -57,7 +89,9 @@ export const TopBar: React.FC<TopBarProps> = ({
         >
           <Bell className="w-4 h-4 stroke-[2]" />
           {/* Notification Dot */}
-          <span className="absolute top-2 right-2.5 w-2 h-2 rounded-full bg-[#38bdf8] dark:bg-[#00f0ff] shadow-[0_0_8px_#38bdf8] dark:shadow-[0_0_8px_#00f0ff]" />
+          {hasUnreadNotifications && (
+            <span className="absolute top-2 right-2.5 w-2 h-2 rounded-full bg-[#38bdf8] dark:bg-[#00f0ff] shadow-[0_0_8px_#38bdf8] dark:shadow-[0_0_8px_#00f0ff]" />
+          )}
         </button>
 
         {/* Theme Toggle: Sun in Dark mode, Moon in Light mode */}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle2, Share2, Sparkles } from 'lucide-react';
+import { CheckCircle2, Share2, Sparkles, Trash2 } from 'lucide-react';
 import { AppState, Transaction } from '../types';
 import { calculateBalance, formatMoney } from '../utils/formatters';
 
@@ -9,6 +9,7 @@ interface SettlementsViewProps {
   onOpenShare: () => void;
   onBackToDashboard: () => void;
   onSelectTransaction?: (tx: Transaction) => void;
+  onDeleteTransaction?: (id: string) => void;
 }
 
 export const SettlementsView: React.FC<SettlementsViewProps> = ({
@@ -17,6 +18,7 @@ export const SettlementsView: React.FC<SettlementsViewProps> = ({
   onOpenShare,
   onBackToDashboard,
   onSelectTransaction,
+  onDeleteTransaction,
 }) => {
   const activeUser = state.activeUserId === state.user1.id ? state.user1 : state.user2;
   const friend = state.activeUserId === state.user1.id ? state.user2 : state.user1;
@@ -164,13 +166,26 @@ export const SettlementsView: React.FC<SettlementsViewProps> = ({
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-4 shrink-0">
+                  <div className="flex items-center gap-3 sm:gap-4 shrink-0">
                     <span className="text-xs text-slate-500 dark:text-slate-400">
                       {tx.date}
                     </span>
                     <span className="text-base font-extrabold text-emerald-600 dark:text-emerald-400">
                       {formatMoney(tx.amount, state.currency)}
                     </span>
+                    {onDeleteTransaction && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDeleteTransaction(tx.id);
+                        }}
+                        className="p-1.5 rounded-xl text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                        title="Delete this settlement record"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 </div>
               );

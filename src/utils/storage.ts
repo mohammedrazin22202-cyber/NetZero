@@ -1,4 +1,4 @@
-import { AppState, Transaction, UserProfile } from '../types';
+import { AppState, DEFAULT_KEYBOARD_SHORTCUTS, KeyboardShortcuts, Transaction, UserProfile } from '../types';
 import { DEFAULT_CURRENCY } from './currencies';
 
 const STORAGE_KEY = 'netzero_dashboard_v6';
@@ -8,6 +8,7 @@ export const INITIAL_USER_1: UserProfile = {
   name: 'MegaTron',
   avatar: 'M',
   color: 'purple',
+  pin: '8181',
   upiId: 'megatron@upi',
   paypalUser: 'megatron',
   venmoUser: 'megatron-pay',
@@ -18,6 +19,7 @@ export const INITIAL_USER_2: UserProfile = {
   name: 'Sam (Bestie)',
   avatar: 'S',
   color: 'purple',
+  pin: '1234',
   upiId: 'sam@upi',
   paypalUser: 'sambestie',
   venmoUser: 'sam-bestie',
@@ -89,6 +91,7 @@ export const DEFAULT_STATE: AppState = {
   monthlyBudgets: {},
   recurringExpenses: [],
   theme: 'dark',
+  shortcuts: DEFAULT_KEYBOARD_SHORTCUTS,
 };
 
 export function loadAppState(): AppState {
@@ -106,10 +109,14 @@ export function loadAppState(): AppState {
       id: INITIAL_USER_1.id,
       name: cleanName,
       avatar: cleanName.charAt(0).toUpperCase(),
+      pin: parsed.currentUser?.pin || parsed.user1?.pin || '8181',
     };
 
     let friends: UserProfile[] = Array.isArray(parsed.friends) && parsed.friends.length > 0
-      ? parsed.friends
+      ? parsed.friends.map((f: UserProfile, idx: number) => ({
+          ...f,
+          pin: f.pin || (idx === 0 ? '1234' : String(1200 + idx)),
+        }))
       : [INITIAL_USER_2];
 
     let selectedFriendId = parsed.selectedFriendId || friends[0].id;
@@ -134,6 +141,11 @@ export function loadAppState(): AppState {
     const activeUserId =
       parsed.activeUserId === activeFriend.id ? activeFriend.id : currentUser.id;
 
+    const shortcuts: KeyboardShortcuts = {
+      ...DEFAULT_KEYBOARD_SHORTCUTS,
+      ...(parsed.shortcuts || {}),
+    };
+
     return {
       ...DEFAULT_STATE,
       ...parsed,
@@ -149,6 +161,7 @@ export function loadAppState(): AppState {
       monthlyBudgets: parsed.monthlyBudgets || {},
       recurringExpenses: Array.isArray(parsed.recurringExpenses) ? parsed.recurringExpenses : [],
       theme: parsed.theme === 'light' ? 'light' : 'dark',
+      shortcuts,
     };
   } catch (e) {
     console.error('Failed to load state from localStorage:', e);

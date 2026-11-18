@@ -19,7 +19,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [filterPayer, setFilterPayer] = useState<'all' | 'me' | 'friend'>('all');
+  const [filterPayer, setFilterPayer] = useState<'all' | 'me' | 'friend' | 'loans'>('all');
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'highest'>('newest');
   const [viewingReceipt, setViewingReceipt] = useState<string | null>(null);
 
@@ -52,11 +52,12 @@ export const TransactionList: React.FC<TransactionListProps> = ({
       const matchesCategory =
         selectedCategory === 'all' || tx.category === selectedCategory;
 
-      // Payer
+      // Payer / Type filter
       const matchesPayer =
         filterPayer === 'all' ||
         (filterPayer === 'me' && tx.paidBy === activeUser.id) ||
-        (filterPayer === 'friend' && tx.paidBy === friend.id);
+        (filterPayer === 'friend' && tx.paidBy === friend.id) ||
+        (filterPayer === 'loans' && Boolean(tx.isLoan || tx.category === 'loan' || tx.type === 'loan'));
 
       return matchesSearch && matchesCategory && matchesPayer;
     });
@@ -134,6 +135,17 @@ export const TransactionList: React.FC<TransactionListProps> = ({
           >
             Paid by {friend.name.split(' ')[0]}
           </button>
+          <button
+            onClick={() => setFilterPayer('loans')}
+            className={`px-3 py-1.5 rounded-xl font-medium transition-all whitespace-nowrap flex items-center gap-1 ${
+              filterPayer === 'loans'
+                ? 'bg-emerald-500 text-slate-950 font-bold border border-emerald-400 shadow-sm'
+                : 'bg-white dark:bg-slate-900/80 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 border border-slate-200 dark:border-slate-800'
+            }`}
+          >
+            <span>🤝</span>
+            <span>Loans</span>
+          </button>
 
           {/* Category Dropdown Pill */}
           <select
@@ -207,6 +219,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({
             const catMeta = CATEGORIES[tx.category] || CATEGORIES.other;
             const youPaid = tx.paidBy === activeUser.id;
             const isSettlement = tx.isSettlement;
+            const isLoan = !isSettlement && Boolean(tx.isLoan || tx.category === 'loan' || tx.type === 'loan');
 
             return (
               <div
@@ -216,9 +229,13 @@ export const TransactionList: React.FC<TransactionListProps> = ({
                 {/* Left side: Icon + Title + Meta */}
                 <div className="flex items-center gap-3 min-w-0 flex-1 pr-3">
                   <div
-                    className={`w-10 h-10 rounded-2xl flex items-center justify-center text-lg shrink-0 border ${catMeta.bgColor}`}
+                    className={`w-10 h-10 rounded-2xl flex items-center justify-center text-lg shrink-0 border ${
+                      isLoan
+                        ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
+                        : catMeta.bgColor
+                    }`}
                   >
-                    {isSettlement ? '🤝' : catMeta.emoji}
+                    {isSettlement ? '🤝' : isLoan ? '💵' : catMeta.emoji}
                   </div>
 
                   <div className="min-w-0 flex-1">
@@ -229,6 +246,31 @@ export const TransactionList: React.FC<TransactionListProps> = ({
                       {isSettlement && (
                         <span className="px-1.5 py-0.5 rounded-md bg-teal-500/20 text-teal-700 dark:text-teal-400 text-[10px] font-bold">
                           Settled
+                        </span>
+                      )}
+                      {isLoan && (
+                        <span className="px-1.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold border border-emerald-500/30">
+                          🤝 Loan
+                        </span>
+                      )}
+                      {tx.approvalStatus === 'pending_approval' && (
+                        <span className="px-1.5 py-0.5 rounded-md bg-amber-500/20 text-amber-700 dark:text-amber-400 text-[10px] font-bold border border-amber-500/30">
+                          ⏳ Pending Approval
+                        </span>
+                      )}
+                      {tx.approvalStatus === 'on_hold' && (
+                        <span className="px-1.5 py-0.5 rounded-md bg-rose-500/20 text-rose-700 dark:text-rose-400 text-[10px] font-bold border border-rose-500/30">
+                          🔒 On Hold (72h)
+                        </span>
+                      )}
+                      {tx.approvalStatus === 'disputed_review' && (
+                        <span className="px-1.5 py-0.5 rounded-md bg-purple-500/20 text-purple-700 dark:text-purple-300 text-[10px] font-bold border border-purple-500/30">
+                          ⚖️ 72h Review
+                        </span>
+                      )}
+                      {tx.approvalStatus === 'rejected' && (
+                        <span className="px-1.5 py-0.5 rounded-md bg-slate-500/20 text-slate-600 dark:text-slate-400 text-[10px] font-bold border border-slate-500/30">
+                          ❌ Rejected
                         </span>
                       )}
                       {tx.items && tx.items.length > 0 && (
@@ -257,10 +299,14 @@ export const TransactionList: React.FC<TransactionListProps> = ({
                           ? youPaid
                             ? `You settled to ${friend.name.split(' ')[0]}`
                             : `${friend.name.split(' ')[0]} settled to you`
+                          : isLoan
+                          ? youPaid
+                            ? `You loaned to ${friend.name.split(' ')[0]}`
+                            : `${friend.name.split(' ')[0]} loaned to you`
                           : youPaid
                           ? 'You paid'
                           : `${friend.name.split(' ')[0]} paid`}
-                        {!isSettlement && tx.splitType === 'equal_split' && ' (50/50)'}
+                        {!isSettlement && !isLoan && tx.splitType === 'equal_split' && ' (50/50)'}
                       </span>
                       {tx.note && (
                         <>
@@ -314,6 +360,8 @@ export const TransactionList: React.FC<TransactionListProps> = ({
                     <p className="text-[10px] text-slate-400 dark:text-slate-500">
                       {isSettlement
                         ? 'Settlement'
+                        : isLoan
+                        ? '100% Cash Loan'
                         : `total ${formatMoney(tx.amount, state.currency)}`}
                     </p>
                   </div>

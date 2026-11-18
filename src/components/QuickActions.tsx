@@ -4,7 +4,12 @@ import { PlusCircle, Split, HandCoins, ArrowDownRight } from 'lucide-react';
 
 interface QuickActionsProps {
   state: AppState;
-  onOpenAddModal: (presetSplit?: SplitType) => void;
+  onOpenAddModal: (
+    presetSplit?: SplitType,
+    mode?: 'simple' | 'itemized',
+    initialCat?: any,
+    initialTxType?: 'expense' | 'loan'
+  ) => void;
 }
 
 export const QuickActions: React.FC<QuickActionsProps> = ({ state, onOpenAddModal }) => {
@@ -65,17 +70,17 @@ export const QuickActions: React.FC<QuickActionsProps> = ({ state, onOpenAddModa
 
       {/* Action 4: Quick Loan */}
       <button
-        onClick={() => onOpenAddModal('custom')}
-        className="group relative flex flex-col items-start p-3.5 rounded-2xl bg-white dark:bg-slate-900/80 hover:bg-slate-50 dark:hover:bg-slate-800/90 border border-slate-200/90 dark:border-slate-800/80 hover:border-indigo-500/40 text-left transition-all active:scale-[0.98] shadow-sm hover:shadow-indigo-500/5"
+        onClick={() => onOpenAddModal('you_paid_full', 'simple', 'loan', 'loan')}
+        className="group relative flex flex-col items-start p-3.5 rounded-2xl bg-white dark:bg-slate-900/80 hover:bg-slate-50 dark:hover:bg-slate-800/90 border border-slate-200/90 dark:border-slate-800/80 hover:border-emerald-500/40 text-left transition-all active:scale-[0.98] shadow-sm hover:shadow-emerald-500/5"
       >
-        <div className="w-8 h-8 rounded-xl bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+        <div className="w-8 h-8 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
           <HandCoins className="w-4 h-4" />
         </div>
         <span className="text-xs font-bold text-slate-900 dark:text-slate-100 leading-tight">
-          Custom Split
+          Cash Loan
         </span>
         <span className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
-          Exact split amounts
+          Lend or borrow money
         </span>
       </button>
     </div>
