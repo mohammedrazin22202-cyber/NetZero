@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AppState, Currency, UserProfile } from '../types';
 import { SUPPORTED_CURRENCIES, DEFAULT_CURRENCY } from '../utils/currencies';
-import { exportToCSV } from '../utils/storage';
+import { exportToCSV, stripBestieSuffix } from '../utils/storage';
 import { QRCodeDisplay } from './QRCodeDisplay';
 import { X, Download, Upload, RotateCcw, Trash2, Check, Smartphone, User, AlertCircle, Keyboard, Lock, KeyRound, Sparkles, QrCode, Clock } from 'lucide-react';
 import { triggerHaptic } from '../utils/haptics';
@@ -66,8 +66,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       const activeCurr = state.currentUser || state.user1;
       const currentActive =
         state.activeUserId === state.user2.id ? state.user2 : activeCurr;
-      setU1(activeCurr);
-      setU2(state.user2);
+      setU1({
+        ...activeCurr,
+        name: stripBestieSuffix(activeCurr.name),
+      });
+      setU2({
+        ...state.user2,
+        name: stripBestieSuffix(state.user2.name),
+      });
       setMyPin(currentActive.pin || (state.activeUserId === state.user2.id ? '1234' : '8181'));
       setMyUpiId(currentActive.upiId || '');
       setShowUpiQR(Boolean(currentActive.upiId));
@@ -84,7 +90,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const handleSaveProfiles = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!u1.name.trim() || !u2.name.trim()) {
+    const sanitizedU1Name = stripBestieSuffix(u1.name);
+    const sanitizedU2Name = stripBestieSuffix(u2.name);
+
+    if (!sanitizedU1Name || !sanitizedU2Name) {
       setErrorMessage('Both names are required.');
       triggerHaptic('warning');
       return;
@@ -100,20 +109,23 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       f.id === u2.id
         ? {
             ...f,
-            name: u2.name.trim(),
+            name: sanitizedU2Name,
             avatar: u2.avatar,
             upiId: u2.upiId,
             paypalUser: u2.paypalUser,
             venmoUser: u2.venmoUser,
             pin: friendPin, // PRESERVE FRIEND'S PIN UNTOUCHED
           }
-        : f
+        : {
+            ...f,
+            name: stripBestieSuffix(f.name),
+          }
     );
 
     const currentUserObj = state.currentUser || state.user1;
     const updatedUser1 = {
       ...currentUserObj,
-      name: u1.name.trim(),
+      name: sanitizedU1Name,
       avatar: u1.avatar,
       upiId: u1.upiId,
       paypalUser: u1.paypalUser,
@@ -123,7 +135,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
     const updatedUser2 = {
       ...u2,
-      name: u2.name.trim(),
+      name: sanitizedU2Name,
       avatar: u2.avatar,
       upiId: u2.upiId,
       paypalUser: u2.paypalUser,
@@ -279,9 +291,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         ) {
           const currentUser = parsed.currentUser || parsed.user1 || state.currentUser;
           const activeFriend = parsed.user2 || state.user2;
+          const rawFriends = parsed.friends || [activeFriend];
+          const sanitizedFriends = rawFriends.map((f: UserProfile) => ({
+            ...f,
+            name: stripBestieSuffix(f.name) || 'Friend',
+          }));
           const sanitizedState: Partial<AppState> = {
-            currentUser,
-            friends: parsed.friends || [activeFriend],
+            currentUser: {
+              ...currentUser,
+              name: stripBestieSuffix(currentUser.name) || 'MegaTron',
+            },
+            friends: sanitizedFriends,
             selectedFriendId: parsed.selectedFriendId || activeFriend.id,
             transactions: parsed.transactions,
             friendTransactions: parsed.friendTransactions || {
@@ -292,12 +312,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             user1: {
               ...state.user1,
               ...parsed.user1,
-              name: parsed.user1.name.trim() || state.user1.name,
+              name: stripBestieSuffix(parsed.user1.name) || state.user1.name,
             },
             user2: {
               ...state.user2,
               ...parsed.user2,
-              name: parsed.user2.name.trim() || state.user2.name,
+              name: stripBestieSuffix(parsed.user2.name) || state.user2.name,
             },
             currency: parsed.currency || DEFAULT_CURRENCY,
             theme: parsed.theme === 'light' ? 'light' : 'dark',

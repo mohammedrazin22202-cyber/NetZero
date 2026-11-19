@@ -16,13 +16,13 @@ export const INITIAL_USER_1: UserProfile = {
 
 export const INITIAL_USER_2: UserProfile = {
   id: 'user_2',
-  name: 'Sam (Bestie)',
+  name: 'Sam',
   avatar: 'S',
   color: 'purple',
   pin: '1234',
   upiId: 'sam@upi',
-  paypalUser: 'sambestie',
-  venmoUser: 'sam-bestie',
+  paypalUser: 'sam',
+  venmoUser: 'sam-pay',
 };
 
 export function getFreshSampleTransactions(): Transaction[] {
@@ -94,6 +94,11 @@ export const DEFAULT_STATE: AppState = {
   shortcuts: DEFAULT_KEYBOARD_SHORTCUTS,
 };
 
+export function stripBestieSuffix(name?: string): string {
+  if (!name) return '';
+  return name.replace(/\s*\([Bb]estie\)/gi, '').trim();
+}
+
 export function loadAppState(): AppState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -101,7 +106,7 @@ export function loadAppState(): AppState {
     const parsed = JSON.parse(raw);
 
     const rawName = (parsed.currentUser?.name || parsed.user1?.name || '').trim();
-    const cleanName = rawName && rawName !== 'Me (Alex)' ? rawName : 'MegaTron';
+    const cleanName = stripBestieSuffix(rawName && rawName !== 'Me (Alex)' ? rawName : 'MegaTron') || 'MegaTron';
 
     const currentUser: UserProfile = {
       ...INITIAL_USER_1,
@@ -113,14 +118,26 @@ export function loadAppState(): AppState {
     };
 
     let friends: UserProfile[] = Array.isArray(parsed.friends) && parsed.friends.length > 0
-      ? parsed.friends.map((f: UserProfile, idx: number) => ({
-          ...f,
-          pin: f.pin || (idx === 0 ? '1234' : String(1200 + idx)),
-        }))
+      ? parsed.friends.map((f: UserProfile, idx: number) => {
+          const rawFriendName = stripBestieSuffix(f.name || '');
+          const friendName = rawFriendName || (idx === 0 ? 'Sam' : `Friend ${idx + 1}`);
+          return {
+            ...f,
+            name: friendName,
+            avatar: friendName.charAt(0).toUpperCase(),
+            pin: f.pin || (idx === 0 ? '1234' : String(1200 + idx)),
+          };
+        })
       : [INITIAL_USER_2];
 
     let selectedFriendId = parsed.selectedFriendId || friends[0].id;
     let activeFriend = friends.find((f) => f.id === selectedFriendId) || friends[0];
+    const activeFriendName = stripBestieSuffix(activeFriend.name || '') || 'Sam';
+    activeFriend = {
+      ...activeFriend,
+      name: activeFriendName,
+      avatar: activeFriendName.charAt(0).toUpperCase(),
+    };
     selectedFriendId = activeFriend.id;
 
     // Load friendTransactions
@@ -171,7 +188,26 @@ export function loadAppState(): AppState {
 
 export function saveAppState(state: AppState): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    const sanitizedState: AppState = {
+      ...state,
+      currentUser: {
+        ...state.currentUser,
+        name: stripBestieSuffix(state.currentUser.name) || 'MegaTron',
+      },
+      user1: {
+        ...state.user1,
+        name: stripBestieSuffix(state.user1.name) || 'MegaTron',
+      },
+      user2: {
+        ...state.user2,
+        name: stripBestieSuffix(state.user2.name) || 'Sam',
+      },
+      friends: (state.friends || []).map((f) => ({
+        ...f,
+        name: stripBestieSuffix(f.name) || 'Friend',
+      })),
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitizedState));
   } catch (e) {
     console.error('Failed to save state to localStorage:', e);
   }

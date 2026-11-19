@@ -121,6 +121,9 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
     setSelectedCat((prev) => (prev === catId ? 'all' : catId));
   };
 
+  const partner = state.activeUserId === state.user2.id ? state.currentUser : state.user2;
+  const partnerName = partner.name.replace(/\s*\([Bb]estie\)/gi, '').trim() || 'Friend';
+
   return (
     <div className="w-full max-w-4xl mx-auto py-4 animate-fadeIn select-none text-slate-900 dark:text-white">
       {/* Header */}
@@ -128,7 +131,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Spending by Category</h2>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-            Total spending breakdown across categories with {state.user2.name}
+            Total spending breakdown across categories with {partnerName}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -356,7 +359,7 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
                     {tx.title}
                   </span>
                   <span className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                    {tx.date} • Paid by {tx.paidBy === state.currentUser.id ? 'You' : state.user2.name}
+                    {tx.date} • Paid by {tx.paidBy === state.activeUserId ? 'You' : partnerName}
                   </span>
                 </div>
               </div>

@@ -32,11 +32,12 @@ export const AddFriendModal: React.FC<AddFriendModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
+    const cleanName = name.replace(/\s*\([Bb]estie\)/gi, '').trim();
+    if (!cleanName) return;
 
     onAddFriend({
-      name: name.trim(),
-      avatar: name.trim().charAt(0).toUpperCase(),
+      name: cleanName,
+      avatar: cleanName.charAt(0).toUpperCase(),
       color: 'purple',
       pin: pin.trim().slice(0, 4) || '1234',
       upiId: upiId.trim() || undefined,

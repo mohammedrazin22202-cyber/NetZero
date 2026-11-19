@@ -1179,7 +1179,7 @@ export function App() {
             <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
               <div>
                 <h2 className="text-2xl font-bold">All Transactions</h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Complete transaction history with {state.user2.name}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Complete transaction history with {activePartner.name}</p>
               </div>
               <div className="flex items-center gap-2">
                 <button

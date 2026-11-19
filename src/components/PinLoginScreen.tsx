@@ -199,29 +199,25 @@ export const PinLoginScreen: React.FC<PinLoginScreenProps> = ({
           </button>
         </div>
 
-        {/* Quick User Selection Pills */}
+        {/* Quick User Selection Pills - Only display friend account (Sam) */}
         <div className="w-full pt-4 border-t border-purple-100 dark:border-purple-500/20">
           <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">
             Accounts:
           </p>
           <div className="flex items-center justify-center gap-2 flex-wrap">
-            <button
-              type="button"
-              onClick={() => handleQuickLogin(currentUser)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-cyan-50 dark:bg-cyan-950/60 border border-cyan-300 dark:border-cyan-500/40 text-cyan-800 dark:text-cyan-300 text-xs font-bold hover:scale-105 transition-all"
-            >
-              <span>👑 {currentUser.name || 'You'}</span>
-            </button>
-            {friends.map((f) => (
-              <button
-                key={f.id}
-                type="button"
-                onClick={() => handleQuickLogin(f)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-purple-50 dark:bg-purple-950/60 border border-purple-300 dark:border-purple-500/40 text-purple-800 dark:text-purple-300 text-xs font-bold hover:scale-105 transition-all"
-              >
-                <span>🤝 {f.name}</span>
-              </button>
-            ))}
+            {friends.map((f) => {
+              const displayName = (f.name || 'Sam').replace(/\s*\([Bb]estie\)/gi, '').trim() || 'Sam';
+              return (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => handleQuickLogin({ ...f, name: displayName })}
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-purple-50 dark:bg-purple-950/60 border border-purple-300 dark:border-purple-500/40 text-purple-800 dark:text-purple-300 text-xs font-bold hover:scale-105 transition-all shadow-sm"
+                >
+                  <span>🤝 {displayName}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
