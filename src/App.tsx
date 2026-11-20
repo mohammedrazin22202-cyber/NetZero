@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { AppState, SplitType, Transaction, UserProfile, Category, RecurringExpense, KeyboardShortcuts, DEFAULT_KEYBOARD_SHORTCUTS } from './types';
 import { loadAppState, saveAppState, getFreshSampleTransactions } from './utils/storage';
+import { fetchCloudState, syncStateToCloud, checkDatabaseHealth } from './utils/api';
 import { getLocalDateString, calculateBalance } from './utils/formatters';
 import { CATEGORIES } from './utils/categories';
 import { triggerConfetti } from './utils/confetti';
@@ -103,10 +104,38 @@ export function App() {
     });
   };
 
-  // Sync state to local storage on change
+  // Sync state to local storage and MongoDB Atlas on change
   useEffect(() => {
     saveAppState(state);
+    syncStateToCloud(state);
   }, [state]);
+
+  const [dbStatus, setDbStatus] = useState<'checking' | 'connected' | 'disconnected'>('checking');
+
+  // Check MongoDB health and load initial cloud state from Atlas
+  useEffect(() => {
+    let isMounted = true;
+    checkDatabaseHealth().then((res) => {
+      if (isMounted) setDbStatus(res.connected ? 'connected' : 'disconnected');
+    });
+
+    fetchCloudState().then((cloudState) => {
+      if (isMounted && cloudState) {
+        setState(cloudState);
+      }
+    });
+
+    const timer = setInterval(() => {
+      checkDatabaseHealth().then((res) => {
+        if (isMounted) setDbStatus(res.connected ? 'connected' : 'disconnected');
+      });
+    }, 15000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(timer);
+    };
+  }, []);
 
   // Sync theme to root class
   useEffect(() => {
@@ -1045,6 +1074,7 @@ export function App() {
             setIsSettingsOpen(true);
           }}
           theme={state.theme}
+          dbStatus={dbStatus}
           hasUnreadNotifications={state.transactions.some((t) => !acknowledgedNotifications.includes(t.id))}
         />
 

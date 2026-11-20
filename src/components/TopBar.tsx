@@ -13,6 +13,7 @@ interface TopBarProps {
   onChangePin?: () => void;
   theme?: 'dark' | 'light';
   hasUnreadNotifications?: boolean;
+  dbStatus?: 'connected' | 'disconnected' | 'checking';
 }
 
 export const TopBar: React.FC<TopBarProps> = ({
@@ -26,6 +27,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   onChangePin,
   theme = 'dark',
   hasUnreadNotifications = true,
+  dbStatus = 'checking',
 }) => {
   return (
     <header className="w-full flex items-center justify-between gap-4 py-2 select-none">
@@ -53,7 +55,27 @@ export const TopBar: React.FC<TopBarProps> = ({
       </div>
 
       {/* Right Icons: Notifications, Theme Toggle, Profile */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2.5">
+        {/* MongoDB Cloud Status Indicator */}
+        {dbStatus === 'connected' && (
+          <div
+            title="MongoDB Atlas Cluster0 Connected & Synced"
+            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.15)]"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span>Atlas Synced</span>
+          </div>
+        )}
+        {dbStatus === 'disconnected' && (
+          <div
+            title="Offline Mode: Changes saved to local storage cache"
+            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-[11px] font-semibold text-amber-600 dark:text-amber-400"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+            <span>Local Cache</span>
+          </div>
+        )}
+
         {/* User Lock & Change PIN Button */}
         <div className="flex items-center gap-1">
           {onLockApp && (
