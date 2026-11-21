@@ -2,9 +2,16 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import fs from 'fs';
 import { connectDB, AppStateModel } from './db.js';
 
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const distPath = path.join(__dirname, '../dist');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -60,12 +67,22 @@ app.post('/api/state', async (req, res) => {
   }
 });
 
+// Serve frontend static build assets
+if (fs.existsSync(distPath)) {
+  app.use(express.static(distPath));
+
+  // Catch-all handler for SPA routing
+  app.use((req, res) => {
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
+}
+
 // Start server and connect to MongoDB
 async function startServer() {
-  await connectDB();
   app.listen(PORT, () => {
     console.log(`🚀 NetZero Express Backend running on http://localhost:${PORT}`);
   });
+  connectDB();
 }
 
 startServer();
