@@ -67,6 +67,57 @@ app.post('/api/state', async (req, res) => {
   }
 });
 
+// Update specific transaction approval status directly in MongoDB Atlas cluster
+app.post('/api/transactions/:txId/approval', async (req, res) => {
+  try {
+    const { txId } = req.params;
+    const { approvalStatus, lockedUntil, deniedAt, reviewVotes } = req.body;
+
+    if (!txId || !approvalStatus) {
+      return res.status(400).json({ error: 'Missing txId or approvalStatus' });
+    }
+
+    const record = await AppStateModel.findOne({ userId: 'default_user' });
+    if (!record || !record.data) {
+      return res.status(404).json({ error: 'No state found' });
+    }
+
+    const data = record.data;
+
+    const updateTx = (tx) => {
+      if (tx && tx.id === txId) {
+        tx.approvalStatus = approvalStatus;
+        if (lockedUntil !== undefined) tx.lockedUntil = lockedUntil;
+        if (deniedAt !== undefined) tx.deniedAt = deniedAt;
+        if (reviewVotes !== undefined) tx.reviewVotes = reviewVotes;
+      }
+      return tx;
+    };
+
+    if (Array.isArray(data.transactions)) {
+      data.transactions = data.transactions.map(updateTx);
+    }
+
+    if (data.friendTransactions && typeof data.friendTransactions === 'object') {
+      for (const friendId of Object.keys(data.friendTransactions)) {
+        if (Array.isArray(data.friendTransactions[friendId])) {
+          data.friendTransactions[friendId] = data.friendTransactions[friendId].map(updateTx);
+        }
+      }
+    }
+
+    record.markModified('data');
+    record.updatedAt = new Date();
+    await record.save();
+
+    console.log(`✅ [MongoDB Atlas Cluster] Updated approvalStatus of ${txId} to '${approvalStatus}'`);
+    res.json({ success: true, state: record.data, updatedAt: record.updatedAt });
+  } catch (err) {
+    console.error('Error updating transaction approval in MongoDB:', err);
+    res.status(500).json({ error: 'Failed to update transaction approval in cluster', details: err.message });
+  }
+});
+
 // Serve frontend static build assets
 if (fs.existsSync(distPath)) {
   app.use(express.static(distPath));

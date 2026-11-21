@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { AppState, SplitType, Transaction, UserProfile, Category, RecurringExpense, KeyboardShortcuts, DEFAULT_KEYBOARD_SHORTCUTS } from './types';
 import { loadAppState, saveAppState, getFreshSampleTransactions } from './utils/storage';
-import { fetchCloudState, syncStateToCloud, checkDatabaseHealth } from './utils/api';
+import { fetchCloudState, syncStateToCloud, checkDatabaseHealth, updateTransactionApprovalInCloud } from './utils/api';
 import { getLocalDateString, calculateBalance } from './utils/formatters';
 import { CATEGORIES } from './utils/categories';
 import { triggerConfetti } from './utils/confetti';
@@ -104,36 +104,112 @@ export function App() {
     });
   };
 
-  // Sync state to local storage and MongoDB Atlas on change
+  const isCloudLoadedRef = useRef(false);
+
+  // Sync state to local storage and MongoDB Atlas on change (only after initial cloud pull)
   useEffect(() => {
     saveAppState(state);
-    syncStateToCloud(state);
+    if (isCloudLoadedRef.current) {
+      syncStateToCloud(state);
+    }
   }, [state]);
 
   const [dbStatus, setDbStatus] = useState<'checking' | 'connected' | 'disconnected'>('checking');
 
-  // Check MongoDB health and load initial cloud state from Atlas
+  // Check MongoDB health, load initial cloud state, and poll for real-time multi-device sync
   useEffect(() => {
     let isMounted = true;
+
+    const pullFromCluster = async () => {
+      try {
+        const cloudState = await fetchCloudState();
+        if (!isMounted || !cloudState) return;
+
+        setState((prev) => {
+          const prevTxsJson = JSON.stringify(prev.transactions);
+          const cloudTxsJson = JSON.stringify(cloudState.transactions);
+          const prevFriendTxsJson = JSON.stringify(prev.friendTransactions);
+          const cloudFriendTxsJson = JSON.stringify(cloudState.friendTransactions);
+
+          // If no transaction or ledger data has changed, do not cause re-render
+          if (prevTxsJson === cloudTxsJson && prevFriendTxsJson === cloudFriendTxsJson) {
+            return prev;
+          }
+
+          const activeFriendId = prev.selectedFriendId || prev.user2.id;
+          const updatedActiveTxs =
+            cloudState.friendTransactions?.[activeFriendId] ||
+            cloudState.transactions ||
+            prev.transactions;
+
+          return {
+            ...prev,
+            transactions: updatedActiveTxs,
+            friendTransactions: cloudState.friendTransactions || prev.friendTransactions,
+            friends: cloudState.friends && cloudState.friends.length > 0 ? cloudState.friends : prev.friends,
+            monthlyBudgets: cloudState.monthlyBudgets || prev.monthlyBudgets,
+            recurringExpenses: cloudState.recurringExpenses || prev.recurringExpenses,
+            currency: cloudState.currency || prev.currency,
+            // Preserve device-local view state
+            activeUserId: prev.activeUserId,
+            currentUser: prev.currentUser,
+            selectedFriendId: prev.selectedFriendId,
+            theme: prev.theme,
+          };
+        });
+      } catch (err) {
+        console.warn('Cluster sync check failed:', err);
+      }
+    };
+
     checkDatabaseHealth().then((res) => {
       if (isMounted) setDbStatus(res.connected ? 'connected' : 'disconnected');
     });
 
     fetchCloudState().then((cloudState) => {
-      if (isMounted && cloudState) {
-        setState(cloudState);
+      if (isMounted) {
+        if (cloudState) {
+          setState((prev) => {
+            const activeFriendId = prev.selectedFriendId || prev.user2.id;
+            return {
+              ...cloudState,
+              activeUserId: prev.activeUserId,
+              currentUser: prev.currentUser,
+              selectedFriendId: prev.selectedFriendId,
+              theme: prev.theme,
+              transactions:
+                cloudState.friendTransactions?.[activeFriendId] ||
+                cloudState.transactions ||
+                prev.transactions,
+            };
+          });
+        }
+        isCloudLoadedRef.current = true;
       }
     });
 
+    // Fast 3-second polling ensures approvals on another device update automatically
     const timer = setInterval(() => {
       checkDatabaseHealth().then((res) => {
         if (isMounted) setDbStatus(res.connected ? 'connected' : 'disconnected');
       });
-    }, 15000);
+      pullFromCluster();
+    }, 3000);
+
+    const handleFocus = () => pullFromCluster();
+    window.addEventListener('focus', handleFocus);
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        pullFromCluster();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
 
     return () => {
       isMounted = false;
       clearInterval(timer);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, []);
 
@@ -384,6 +460,9 @@ export function App() {
         },
       };
     });
+
+    // Instantly persist approval status to MongoDB Atlas Cluster
+    updateTransactionApprovalInCloud(txId, { approvalStatus: 'approved' });
   };
 
   const handleDenyTransaction = (txId: string) => {
@@ -412,10 +491,19 @@ export function App() {
         },
       };
     });
+
+    // Instantly persist hold status to MongoDB Atlas Cluster
+    updateTransactionApprovalInCloud(txId, {
+      approvalStatus: 'on_hold',
+      deniedAt: now,
+      lockedUntil,
+      reviewVotes: {},
+    });
   };
 
   const handleFastForwardHold = (txId: string) => {
     triggerHaptic('medium');
+    const lockedUntil = Date.now() - 1000;
     setState((prev) => {
       const activeFriendId = prev.selectedFriendId || prev.user2.id;
       const updatedTxs = prev.transactions.map((t) =>
@@ -423,7 +511,7 @@ export function App() {
           ? {
               ...t,
               approvalStatus: 'disputed_review' as const,
-              lockedUntil: Date.now() - 1000,
+              lockedUntil,
             }
           : t
       );
@@ -436,10 +524,19 @@ export function App() {
         },
       };
     });
+
+    // Instantly persist disputed review to MongoDB Atlas Cluster
+    updateTransactionApprovalInCloud(txId, {
+      approvalStatus: 'disputed_review',
+      lockedUntil,
+    });
   };
 
   const handleVoteReview = (txId: string, isTrue: boolean) => {
     triggerHaptic(isTrue ? 'success' : 'error');
+    let finalStatus: any = undefined;
+    let finalVotes: Record<string, boolean> = {};
+
     setState((prev) => {
       const activeFriendId = prev.selectedFriendId || prev.user2.id;
       const updatedTxs = prev.transactions.map((t) => {
@@ -464,6 +561,9 @@ export function App() {
           }
         }
 
+        finalStatus = newStatus;
+        finalVotes = currentVotes;
+
         return {
           ...t,
           approvalStatus: newStatus,
@@ -480,6 +580,13 @@ export function App() {
         },
       };
     });
+
+    if (finalStatus) {
+      updateTransactionApprovalInCloud(txId, {
+        approvalStatus: finalStatus,
+        reviewVotes: finalVotes,
+      });
+    }
   };
 
   // Toggle user perspective

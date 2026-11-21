@@ -56,3 +56,29 @@ export function syncStateToCloud(state: AppState): void {
     }
   }, 500);
 }
+
+export async function updateTransactionApprovalInCloud(
+  txId: string,
+  approvalData: {
+    approvalStatus: 'approved' | 'on_hold' | 'disputed_review' | 'rejected' | 'pending_approval';
+    lockedUntil?: number;
+    deniedAt?: number;
+    reviewVotes?: Record<string, boolean>;
+  }
+): Promise<AppState | null> {
+  try {
+    const res = await fetch(`/api/transactions/${encodeURIComponent(txId)}/approval`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(approvalData),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.state as AppState;
+  } catch (err) {
+    console.warn('Failed to update transaction approval in cloud cluster:', err);
+    return null;
+  }
+}

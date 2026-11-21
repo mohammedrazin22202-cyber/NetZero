@@ -280,7 +280,7 @@ export const ApprovalRequestsBanner: React.FC<ApprovalRequestsBannerProps> = ({
                   </span>
                 </div>
                 <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 shrink-0">
-                  Switch to ID: {activeFriend.pin || '1234'} to approve
+                  Ask your friend {partnerName} to approve this transaction
                 </span>
               </div>
             );
