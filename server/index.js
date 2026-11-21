@@ -118,6 +118,128 @@ app.post('/api/transactions/:txId/approval', async (req, res) => {
   }
 });
 
+// Request deletion approval for a transaction
+app.post('/api/transactions/:txId/deletion-request', async (req, res) => {
+  try {
+    const { txId } = req.params;
+    const { deletionRequestedBy, deletionRespondentId } = req.body;
+
+    const record = await AppStateModel.findOne({ userId: 'default_user' });
+    if (!record || !record.data) {
+      return res.status(404).json({ error: 'No state found' });
+    }
+
+    const data = record.data;
+    const updateTx = (tx) => {
+      if (tx && tx.id === txId) {
+        tx.deletionStatus = 'pending_deletion';
+        tx.deletionRequestedBy = deletionRequestedBy;
+        tx.deletionRespondentId = deletionRespondentId;
+      }
+      return tx;
+    };
+
+    if (Array.isArray(data.transactions)) {
+      data.transactions = data.transactions.map(updateTx);
+    }
+    if (data.friendTransactions && typeof data.friendTransactions === 'object') {
+      for (const friendId of Object.keys(data.friendTransactions)) {
+        if (Array.isArray(data.friendTransactions[friendId])) {
+          data.friendTransactions[friendId] = data.friendTransactions[friendId].map(updateTx);
+        }
+      }
+    }
+
+    record.markModified('data');
+    record.updatedAt = new Date();
+    await record.save();
+
+    console.log(`✅ [MongoDB Atlas Cluster] Deletion requested for ${txId} by ${deletionRequestedBy}`);
+    res.json({ success: true, state: record.data, updatedAt: record.updatedAt });
+  } catch (err) {
+    console.error('Error requesting deletion in MongoDB:', err);
+    res.status(500).json({ error: 'Failed to request deletion in cluster', details: err.message });
+  }
+});
+
+// Approve deletion - permanently purge transaction from cluster
+app.post('/api/transactions/:txId/deletion-approve', async (req, res) => {
+  try {
+    const { txId } = req.params;
+
+    const record = await AppStateModel.findOne({ userId: 'default_user' });
+    if (!record || !record.data) {
+      return res.status(404).json({ error: 'No state found' });
+    }
+
+    const data = record.data;
+
+    if (Array.isArray(data.transactions)) {
+      data.transactions = data.transactions.filter((t) => t && t.id !== txId);
+    }
+    if (data.friendTransactions && typeof data.friendTransactions === 'object') {
+      for (const friendId of Object.keys(data.friendTransactions)) {
+        if (Array.isArray(data.friendTransactions[friendId])) {
+          data.friendTransactions[friendId] = data.friendTransactions[friendId].filter((t) => t && t.id !== txId);
+        }
+      }
+    }
+
+    record.markModified('data');
+    record.updatedAt = new Date();
+    await record.save();
+
+    console.log(`✅ [MongoDB Atlas Cluster] Deletion approved and purged: ${txId}`);
+    res.json({ success: true, state: record.data, updatedAt: record.updatedAt });
+  } catch (err) {
+    console.error('Error approving deletion in MongoDB:', err);
+    res.status(500).json({ error: 'Failed to approve deletion in cluster', details: err.message });
+  }
+});
+
+// Reject or cancel deletion request - keep transaction
+app.post('/api/transactions/:txId/deletion-reject', async (req, res) => {
+  try {
+    const { txId } = req.params;
+
+    const record = await AppStateModel.findOne({ userId: 'default_user' });
+    if (!record || !record.data) {
+      return res.status(404).json({ error: 'No state found' });
+    }
+
+    const data = record.data;
+    const updateTx = (tx) => {
+      if (tx && tx.id === txId) {
+        delete tx.deletionStatus;
+        delete tx.deletionRequestedBy;
+        delete tx.deletionRespondentId;
+      }
+      return tx;
+    };
+
+    if (Array.isArray(data.transactions)) {
+      data.transactions = data.transactions.map(updateTx);
+    }
+    if (data.friendTransactions && typeof data.friendTransactions === 'object') {
+      for (const friendId of Object.keys(data.friendTransactions)) {
+        if (Array.isArray(data.friendTransactions[friendId])) {
+          data.friendTransactions[friendId] = data.friendTransactions[friendId].map(updateTx);
+        }
+      }
+    }
+
+    record.markModified('data');
+    record.updatedAt = new Date();
+    await record.save();
+
+    console.log(`✅ [MongoDB Atlas Cluster] Deletion rejected/cancelled for ${txId}`);
+    res.json({ success: true, state: record.data, updatedAt: record.updatedAt });
+  } catch (err) {
+    console.error('Error rejecting deletion in MongoDB:', err);
+    res.status(500).json({ error: 'Failed to reject deletion in cluster', details: err.message });
+  }
+});
+
 // Serve frontend static build assets
 if (fs.existsSync(distPath)) {
   app.use(express.static(distPath));

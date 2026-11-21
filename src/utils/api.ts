@@ -82,3 +82,61 @@ export async function updateTransactionApprovalInCloud(
     return null;
   }
 }
+
+export async function requestTransactionDeletionInCloud(
+  txId: string,
+  payload: {
+    deletionRequestedBy: string;
+    deletionRespondentId: string;
+  }
+): Promise<AppState | null> {
+  try {
+    const res = await fetch(`/api/transactions/${encodeURIComponent(txId)}/deletion-request`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.state as AppState;
+  } catch (err) {
+    console.warn('Failed to request transaction deletion in cloud cluster:', err);
+    return null;
+  }
+}
+
+export async function approveTransactionDeletionInCloud(txId: string): Promise<AppState | null> {
+  try {
+    const res = await fetch(`/api/transactions/${encodeURIComponent(txId)}/deletion-approve`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.state as AppState;
+  } catch (err) {
+    console.warn('Failed to approve transaction deletion in cloud cluster:', err);
+    return null;
+  }
+}
+
+export async function rejectTransactionDeletionInCloud(txId: string): Promise<AppState | null> {
+  try {
+    const res = await fetch(`/api/transactions/${encodeURIComponent(txId)}/deletion-reject`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.state as AppState;
+  } catch (err) {
+    console.warn('Failed to reject transaction deletion in cloud cluster:', err);
+    return null;
+  }
+}

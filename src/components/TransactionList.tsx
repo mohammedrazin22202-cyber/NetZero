@@ -273,6 +273,11 @@ export const TransactionList: React.FC<TransactionListProps> = ({
                           ❌ Rejected
                         </span>
                       )}
+                      {tx.deletionStatus === 'pending_deletion' && (
+                        <span className="px-1.5 py-0.5 rounded-md bg-rose-500/20 text-rose-600 dark:text-rose-400 text-[10px] font-bold border border-rose-500/30 flex items-center gap-1 animate-pulse">
+                          <Trash2 className="w-2.5 h-2.5" /> Deletion Pending
+                        </span>
+                      )}
                       {tx.items && tx.items.length > 0 && (
                         <span className="px-1.5 py-0.5 rounded-md bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 text-[10px] font-semibold">
                           {tx.items.length} items

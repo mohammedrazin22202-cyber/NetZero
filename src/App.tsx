@@ -1,8 +1,16 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { AppState, SplitType, Transaction, UserProfile, Category, RecurringExpense, KeyboardShortcuts, DEFAULT_KEYBOARD_SHORTCUTS } from './types';
 import { loadAppState, saveAppState, getFreshSampleTransactions } from './utils/storage';
-import { fetchCloudState, syncStateToCloud, checkDatabaseHealth, updateTransactionApprovalInCloud } from './utils/api';
-import { getLocalDateString, calculateBalance } from './utils/formatters';
+import {
+  fetchCloudState,
+  syncStateToCloud,
+  checkDatabaseHealth,
+  updateTransactionApprovalInCloud,
+  requestTransactionDeletionInCloud,
+  approveTransactionDeletionInCloud,
+  rejectTransactionDeletionInCloud,
+} from './utils/api';
+import { getLocalDateString, calculateBalance, formatMoney } from './utils/formatters';
 import { CATEGORIES } from './utils/categories';
 import { triggerConfetti } from './utils/confetti';
 import { triggerHaptic } from './utils/haptics';
@@ -718,12 +726,67 @@ export function App() {
     triggerHaptic('success');
   };
 
-  // Delete transaction
+  // Delete transaction with mutual deletion approval flow
   const handleDeleteTransaction = (id: string) => {
-    if (window.confirm('Are you sure you want to delete this transaction?')) {
+    const targetTx = state.transactions.find((t) => t.id === id);
+    if (!targetTx) return;
+
+    const partnerName = activePartner.name.split(' ')[0];
+
+    // Case 1: Deletion is already pending approval
+    if (targetTx.deletionStatus === 'pending_deletion') {
+      if (targetTx.deletionRequestedBy === activeUser.id) {
+        alert(`Deletion request is already awaiting approval from ${partnerName}.`);
+      } else {
+        alert(`${partnerName} has requested to delete this transaction. Please use the approval banner above to approve or reject.`);
+      }
+      return;
+    }
+
+    // Case 2: Unapproved pending transaction created by active user itself
+    const isUnapprovedByMe =
+      targetTx.approvalStatus === 'pending_approval' &&
+      targetTx.approvalRequestedBy === activeUser.id;
+
+    if (isUnapprovedByMe) {
+      if (window.confirm(`Withdraw and delete your pending transaction "${targetTx.title}"?`)) {
+        setState((prev) => {
+          const activeFriendId = prev.selectedFriendId || prev.user2.id;
+          const updatedTxs = prev.transactions.filter((t) => t.id !== id);
+          return {
+            ...prev,
+            transactions: updatedTxs,
+            friendTransactions: {
+              ...prev.friendTransactions,
+              [activeFriendId]: updatedTxs,
+            },
+          };
+        });
+        approveTransactionDeletionInCloud(id);
+        triggerHaptic('light');
+      }
+      return;
+    }
+
+    // Case 3: Mutual transaction (approved, settled, or created by partner) -> MUST require friend's approval
+    const isSettlement = targetTx.isSettlement || targetTx.category === 'settlement';
+    const confirmMessage = isSettlement
+      ? `Deleting this settlement for "${targetTx.title}" (${formatMoney(targetTx.amount, state.currency)}) requires confirmation from ${partnerName}.\n\nSend deletion approval request to ${partnerName}?`
+      : `Deleting "${targetTx.title}" (${formatMoney(targetTx.amount, state.currency)}) requires confirmation from ${partnerName}.\n\nSend deletion approval request to ${partnerName}?`;
+
+    if (window.confirm(confirmMessage)) {
       setState((prev) => {
         const activeFriendId = prev.selectedFriendId || prev.user2.id;
-        const updatedTxs = prev.transactions.filter((t) => t.id !== id);
+        const updatedTxs = prev.transactions.map((t) =>
+          t.id === id
+            ? {
+                ...t,
+                deletionStatus: 'pending_deletion' as const,
+                deletionRequestedBy: activeUser.id,
+                deletionRespondentId: activePartner.id,
+              }
+            : t
+        );
         return {
           ...prev,
           transactions: updatedTxs,
@@ -733,8 +796,64 @@ export function App() {
           },
         };
       });
-      triggerHaptic('light');
+
+      requestTransactionDeletionInCloud(id, {
+        deletionRequestedBy: activeUser.id,
+        deletionRespondentId: activePartner.id,
+      });
+
+      triggerHaptic('medium');
     }
+  };
+
+  // Approve deletion (permanently remove record from ledger and cluster)
+  const handleApproveDeletion = (id: string) => {
+    const targetTx = state.transactions.find((t) => t.id === id);
+    const title = targetTx ? `"${targetTx.title}"` : 'this transaction';
+    if (!window.confirm(`Permanently delete ${title}? Both parties' ledgers will be updated.`)) {
+      return;
+    }
+
+    setState((prev) => {
+      const activeFriendId = prev.selectedFriendId || prev.user2.id;
+      const updatedTxs = prev.transactions.filter((t) => t.id !== id);
+      return {
+        ...prev,
+        transactions: updatedTxs,
+        friendTransactions: {
+          ...prev.friendTransactions,
+          [activeFriendId]: updatedTxs,
+        },
+      };
+    });
+
+    approveTransactionDeletionInCloud(id);
+    triggerHaptic('success');
+  };
+
+  // Reject / Cancel deletion request (keep record active)
+  const handleRejectDeletion = (id: string) => {
+    setState((prev) => {
+      const activeFriendId = prev.selectedFriendId || prev.user2.id;
+      const updatedTxs = prev.transactions.map((t) => {
+        if (t.id === id) {
+          const { deletionStatus, deletionRequestedBy, deletionRespondentId, ...rest } = t;
+          return rest as Transaction;
+        }
+        return t;
+      });
+      return {
+        ...prev,
+        transactions: updatedTxs,
+        friendTransactions: {
+          ...prev.friendTransactions,
+          [activeFriendId]: updatedTxs,
+        },
+      };
+    });
+
+    rejectTransactionDeletionInCloud(id);
+    triggerHaptic('light');
   };
 
   // Delete friend and all their data
@@ -1207,6 +1326,8 @@ export function App() {
           onDeny={handleDenyTransaction}
           onVoteReview={handleVoteReview}
           onFastForwardHold={handleFastForwardHold}
+          onApproveDeletion={handleApproveDeletion}
+          onRejectDeletion={handleRejectDeletion}
         />
 
         {/* View Switcher based on Sidebar Navigation */}

@@ -161,6 +161,11 @@ export const RecentTransactionsCard: React.FC<RecentTransactionsCardProps> = ({
                           ❌ Rejected
                         </span>
                       )}
+                      {tx.deletionStatus === 'pending_deletion' && (
+                        <span className="px-1.5 py-0.2 rounded-md bg-rose-500/20 text-rose-700 dark:text-rose-300 text-[9px] font-bold border border-rose-500/30 shrink-0">
+                          🗑️ Deletion Pending
+                        </span>
+                      )}
                     </div>
                     <span className="text-xs text-slate-500 dark:text-slate-400 truncate">
                       {isLoan

@@ -69,6 +69,9 @@ export interface Transaction {
   lockedUntil?: number; // Timestamp (ms) when 72h hold expires
   reviewVotes?: Record<string, boolean>; // [userId]: true | false
   createdAt: number;
+  deletionStatus?: 'pending_deletion';
+  deletionRequestedBy?: string; // User ID who initiated deletion request
+  deletionRespondentId?: string; // User ID who must approve deletion
 }
 
 export interface RecurringExpense {

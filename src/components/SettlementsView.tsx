@@ -157,9 +157,16 @@ export const SettlementsView: React.FC<SettlementsViewProps> = ({
                       <CheckCircle2 className="w-5 h-5 stroke-[2.5]" />
                     </div>
                     <div className="flex flex-col min-w-0">
-                      <span className="text-sm font-bold truncate group-hover:text-emerald-500 transition-colors">
-                        {tx.title || 'Settled Balance'}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold truncate group-hover:text-emerald-500 transition-colors">
+                          {tx.title || 'Settled Balance'}
+                        </span>
+                        {tx.deletionStatus === 'pending_deletion' && (
+                          <span className="px-1.5 py-0.5 rounded-md bg-rose-500/20 text-rose-600 dark:text-rose-400 text-[10px] font-bold border border-rose-500/30 shrink-0">
+                            Deletion Pending
+                          </span>
+                        )}
+                      </div>
                       <span className="text-xs text-slate-500 dark:text-slate-400 truncate">
                         {payerName} paid {recipientName} • {tx.note || 'Settled'}
                       </span>

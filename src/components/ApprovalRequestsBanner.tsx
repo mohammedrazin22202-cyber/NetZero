@@ -2,7 +2,7 @@ import React from 'react';
 import { Transaction, UserProfile, Currency } from '../types';
 import { triggerHaptic } from '../utils/haptics';
 import { triggerConfetti } from '../utils/confetti';
-import { AlertCircle, Clock, Check, X, ShieldAlert, FastForward, CheckCircle2, XCircle } from 'lucide-react';
+import { AlertCircle, Clock, Check, X, ShieldAlert, FastForward, CheckCircle2, XCircle, Trash2 } from 'lucide-react';
 import { formatMoney } from '../utils/formatters';
 
 interface ApprovalRequestsBannerProps {
@@ -14,6 +14,8 @@ interface ApprovalRequestsBannerProps {
   onDeny: (txId: string) => void;
   onVoteReview: (txId: string, isTrue: boolean) => void;
   onFastForwardHold?: (txId: string) => void;
+  onApproveDeletion?: (txId: string) => void;
+  onRejectDeletion?: (txId: string) => void;
 }
 
 export const ApprovalRequestsBanner: React.FC<ApprovalRequestsBannerProps> = ({
@@ -25,15 +27,21 @@ export const ApprovalRequestsBanner: React.FC<ApprovalRequestsBannerProps> = ({
   onDeny,
   onVoteReview,
   onFastForwardHold,
+  onApproveDeletion,
+  onRejectDeletion,
 }) => {
   const now = Date.now();
 
   // Find transactions that need attention:
-  // 1. pending_approval where respondent is currentUser
-  // 2. pending_approval where requester is currentUser (informational)
-  // 3. on_hold (either active or ready for review)
-  // 4. disputed_review
+  // 1. deletionStatus === 'pending_deletion'
+  // 2. pending_approval where respondent is currentUser
+  // 3. pending_approval where requester is currentUser (informational)
+  // 4. on_hold (either active or ready for review)
+  // 5. disputed_review
   const relevantTxs = transactions.filter((t) => {
+    if (t.deletionStatus === 'pending_deletion') {
+      return true;
+    }
     if (!t.approvalStatus || t.approvalStatus === 'approved' || t.approvalStatus === 'rejected') {
       return false;
     }
@@ -60,6 +68,80 @@ export const ApprovalRequestsBanner: React.FC<ApprovalRequestsBannerProps> = ({
         const partnerName = activeFriend.name.split(' ')[0];
         const isHoldExpired = t.lockedUntil ? now >= t.lockedUntil : false;
         const isReadyForDualReview = t.approvalStatus === 'disputed_review' || (t.approvalStatus === 'on_hold' && isHoldExpired);
+
+        // CASE 0: Deletion Approval Request
+        if (t.deletionStatus === 'pending_deletion') {
+          const isDeletionRespondent = t.deletionRespondentId === currentUser.id;
+          const isDeletionRequester = t.deletionRequestedBy === currentUser.id;
+
+          if (isDeletionRespondent) {
+            return (
+              <div
+                key={`del-${t.id}`}
+                className="rounded-2xl p-4 bg-gradient-to-r from-rose-950/40 via-red-950/50 to-rose-900/40 border border-rose-500/40 shadow-[0_0_20px_rgba(244,63,94,0.15)] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-white animate-fadeIn"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/40 flex items-center justify-center shrink-0 mt-0.5">
+                    <Trash2 className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-black uppercase tracking-wider text-rose-300">
+                      Deletion Approval Required
+                    </span>
+                    <h4 className="text-sm font-bold text-white mt-0.5">
+                      <strong>{partnerName}</strong> requested to delete "{t.title}" ({formatMoney(t.amount, currency)})
+                    </h4>
+                    <p className="text-xs text-rose-200/80 mt-0.5">
+                      Approving will permanently remove this record from the ledger.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => onApproveDeletion?.(t.id)}
+                    className="px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-rose-600/30 transition-all hover:scale-105 active:scale-95"
+                  >
+                    <Check className="w-3.5 h-3.5 stroke-[3]" />
+                    <span>Approve Deletion</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onRejectDeletion?.(t.id)}
+                    className="px-3 py-1.5 rounded-xl border border-rose-400/30 bg-white/5 hover:bg-white/10 text-rose-200 font-semibold text-xs flex items-center gap-1.5 transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5 stroke-[2.5]" />
+                    <span>Keep Transaction</span>
+                  </button>
+                </div>
+              </div>
+            );
+          }
+
+          if (isDeletionRequester) {
+            return (
+              <div
+                key={`del-${t.id}`}
+                className="rounded-2xl p-3.5 bg-rose-50/80 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-500/30 flex items-center justify-between gap-3 text-xs text-slate-700 dark:text-slate-300 animate-fadeIn"
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping shrink-0" />
+                  <span>
+                    Awaiting deletion approval from <strong>{partnerName}</strong> for "{t.title}" ({formatMoney(t.amount, currency)}).
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onRejectDeletion?.(t.id)}
+                  className="text-[11px] font-bold text-rose-600 dark:text-rose-400 hover:underline shrink-0"
+                >
+                  Cancel Request
+                </button>
+              </div>
+            );
+          }
+        }
 
         // CASE 1: 72-Hour Hold Completed -> Dual Party Review ("Is this transaction true or not?")
         if (isReadyForDualReview) {
