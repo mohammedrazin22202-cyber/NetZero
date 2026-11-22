@@ -40,6 +40,11 @@ Never let forgotten loans or awkward *"hey, did you ever pay me back for that?"*
   - Runs 100% locally in your browser with LocalStorage.
   - Complete data privacy with zero external telemetry.
   - Full CSV export and JSON backup/restore capabilities.
+- **☁️ Multi-Device Real-Time Sync & MongoDB Atlas**:
+  - Fullstack Express backend connected to MongoDB Atlas.
+  - 3-second real-time cross-device polling and focus synchronization.
+  - **Mutual Transaction Approval**: Transactions require approval from the other party before being officially recorded.
+  - **Mutual Deletion Approval**: Pre- and post-settlement transactions require mutual confirmation to delete.
 
 ---
 
@@ -49,14 +54,30 @@ Never let forgotten loans or awkward *"hey, did you ever pay me back for that?"*
 # 1. Install dependencies
 npm install
 
-# 2. Start the dev server
+# 2. Start both frontend and backend concurrently
 npm run dev
 
 # 3. Build for production
 npm run build
+
+# 4. Start production Express server
+npm start
 ```
 
-Then open `http://localhost:5173` in your browser.
+Then open `http://localhost:5173` (Vite dev) or `http://localhost:5000` (production).
+
+---
+
+## ☁️ Deployment on Render
+
+This project is fully configured for deployment on [Render](https://render.com) using the included `render.yaml` Blueprint:
+
+1. Connect your GitHub repository to Render.
+2. Create a new **Blueprint** or **Web Service**.
+3. Set your environment variable:
+   - `MONGODB_URI`: `<Your MongoDB Atlas connection string>`
+4. Build command: `npm install --include=dev && npm run build`
+5. Start command: `npm start`
 
 ---
 
