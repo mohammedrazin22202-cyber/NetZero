@@ -19,6 +19,14 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
+// Ensure all API responses bypass any proxy or browser caching
+app.use('/api', (req, res, next) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  next();
+});
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   const isConnected = mongoose.connection.readyState === 1;
@@ -246,6 +254,7 @@ if (fs.existsSync(distPath)) {
 
   // Catch-all handler for SPA routing
   app.use((req, res) => {
+    res.set('Cache-Control', 'no-cache, must-revalidate');
     res.sendFile(path.join(distPath, 'index.html'));
   });
 }

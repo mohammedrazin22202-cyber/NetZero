@@ -7,7 +7,10 @@ export interface DatabaseHealth {
 
 export async function checkDatabaseHealth(): Promise<DatabaseHealth> {
   try {
-    const res = await fetch('/api/health');
+    const res = await fetch(`/api/health?_t=${Date.now()}`, {
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache' },
+    });
     if (!res.ok) return { connected: false, status: 'error' };
     const data = await res.json();
     return {
@@ -21,7 +24,10 @@ export async function checkDatabaseHealth(): Promise<DatabaseHealth> {
 
 export async function fetchCloudState(): Promise<AppState | null> {
   try {
-    const res = await fetch('/api/state');
+    const res = await fetch(`/api/state?_t=${Date.now()}`, {
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache, no-store' },
+    });
     if (!res.ok) return null;
     const data = await res.json();
     if (data && data.state) {
