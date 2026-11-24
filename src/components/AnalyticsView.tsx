@@ -33,8 +33,20 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ state, onUpdateBud
   const [isEditingBudget, setIsEditingBudget] = useState(false);
   const [budgetInput, setBudgetInput] = useState(currentBudget ? currentBudget.toString() : '');
 
-  // Filter out settlements for spending analytics
-  const expenseTransactions = state.transactions.filter((t) => !t.isSettlement);
+  // Filter out settlements, loans, and unapproved transactions for spending analytics
+  const expenseTransactions = state.transactions.filter((t) => {
+    if (t.isSettlement || t.category === 'settlement' || t.type === 'settlement') return false;
+    if (t.isLoan || t.category === 'loan' || t.type === 'loan') return false;
+    if (
+      t.approvalStatus === 'pending_approval' ||
+      t.approvalStatus === 'on_hold' ||
+      t.approvalStatus === 'disputed_review' ||
+      t.approvalStatus === 'rejected'
+    ) {
+      return false;
+    }
+    return true;
+  });
 
   const totalSpentTogether = expenseTransactions.reduce((acc, t) => acc + t.amount, 0);
 

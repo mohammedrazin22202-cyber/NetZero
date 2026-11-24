@@ -36,8 +36,20 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({
   const [selectedCat, setSelectedCat] = useState<Category | 'all'>('all');
   const [hoveredCat, setHoveredCat] = useState<Category | null>(null);
 
-  // Exclude settlements for spending metrics
-  const expenseTxs = state.transactions.filter((t) => !t.isSettlement);
+  // Exclude settlements, loans, and unapproved transactions for spending metrics
+  const expenseTxs = state.transactions.filter((t) => {
+    if (t.isSettlement || t.category === 'settlement' || t.type === 'settlement') return false;
+    if (t.isLoan || t.category === 'loan' || t.type === 'loan') return false;
+    if (
+      t.approvalStatus === 'pending_approval' ||
+      t.approvalStatus === 'on_hold' ||
+      t.approvalStatus === 'disputed_review' ||
+      t.approvalStatus === 'rejected'
+    ) {
+      return false;
+    }
+    return true;
+  });
   const totalSpent = expenseTxs.reduce((sum, t) => sum + t.amount, 0);
 
   // Group by category - show only categories with actual contribution (>0)

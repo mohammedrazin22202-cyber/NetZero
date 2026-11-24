@@ -144,7 +144,11 @@ export function App() {
             return prev;
           }
 
-          const activeFriendId = prev.selectedFriendId || prev.user2.id;
+          const hasExistingFriend = cloudState.friends?.some((f) => f.id === prev.selectedFriendId);
+          const activeFriendId = hasExistingFriend
+            ? prev.selectedFriendId
+            : (cloudState.selectedFriendId || cloudState.friends?.[0]?.id || prev.user2.id);
+
           const updatedActiveTxs =
             cloudState.friendTransactions?.[activeFriendId] ||
             cloudState.transactions ||
@@ -161,7 +165,7 @@ export function App() {
             // Preserve device-local view state
             activeUserId: prev.activeUserId,
             currentUser: prev.currentUser,
-            selectedFriendId: prev.selectedFriendId,
+            selectedFriendId: activeFriendId,
             theme: prev.theme,
           };
         });
@@ -178,13 +182,19 @@ export function App() {
       if (isMounted) {
         if (cloudState) {
           setState((prev) => {
-            const activeFriendId = prev.selectedFriendId || prev.user2.id;
+            const hasExistingFriend = cloudState.friends?.some((f) => f.id === prev.selectedFriendId);
+            const activeFriendId = hasExistingFriend
+              ? prev.selectedFriendId
+              : (cloudState.selectedFriendId || cloudState.friends?.[0]?.id || prev.user2.id);
+
             return {
               ...cloudState,
-              activeUserId: prev.activeUserId,
-              currentUser: prev.currentUser,
-              selectedFriendId: prev.selectedFriendId,
-              theme: prev.theme,
+              activeUserId: prev.activeUserId || cloudState.activeUserId || 'user_1',
+              currentUser: prev.currentUser?.name && prev.currentUser.name !== 'MegaTron'
+                ? prev.currentUser
+                : (cloudState.currentUser || prev.currentUser),
+              selectedFriendId: activeFriendId,
+              theme: prev.theme || cloudState.theme || 'dark',
               transactions:
                 cloudState.friendTransactions?.[activeFriendId] ||
                 cloudState.transactions ||
@@ -1161,14 +1171,47 @@ export function App() {
     );
   }, [state.transactions, searchQuery]);
 
-  // Dynamic Category breakdown for SpendingOverviewCard
-  const { totalSpent, categoryStats } = useMemo(() => {
-    const expenseTxs = state.transactions.filter((t) => !t.isSettlement);
-    const total = expenseTxs.reduce((sum, t) => sum + t.amount, 0);
+  // Dynamic Category breakdown & spend metrics for SpendingOverviewCard
+  const { totalSpent, userSpent, totalShared, categoryStats, userCategoryStats } = useMemo(() => {
+    // Filter out settlements, cash loans, and unapproved transactions
+    const validExpenseTxs = state.transactions.filter((t) => {
+      if (t.isSettlement || t.category === 'settlement' || t.type === 'settlement') return false;
+      if (t.isLoan || t.category === 'loan' || t.type === 'loan') return false;
+      if (
+        t.approvalStatus === 'pending_approval' ||
+        t.approvalStatus === 'on_hold' ||
+        t.approvalStatus === 'disputed_review' ||
+        t.approvalStatus === 'rejected'
+      ) {
+        return false;
+      }
+      return true;
+    });
 
-    const categoryMap: Partial<Record<Category, number>> = {};
-    for (const t of expenseTxs) {
-      categoryMap[t.category] = (categoryMap[t.category] || 0) + t.amount;
+    let totalSharedAmount = 0;
+    let totalUserAmount = 0;
+    const sharedCategoryMap: Partial<Record<Category, number>> = {};
+    const userCategoryMap: Partial<Record<Category, number>> = {};
+
+    for (const t of validExpenseTxs) {
+      const txAmt = t.amount || 0;
+      totalSharedAmount += txAmt;
+      sharedCategoryMap[t.category] = (sharedCategoryMap[t.category] || 0) + txAmt;
+
+      // Active user's personal share of this expense
+      let uShare = 0;
+      if (t.paidBy === activeUser.id) {
+        // Active user paid upfront, friend owes t.payerOwedAmount
+        uShare = Math.max(0, txAmt - (t.payerOwedAmount || 0));
+      } else if (t.paidBy === activePartner.id) {
+        // Friend paid upfront, active user owes t.payerOwedAmount
+        uShare = t.payerOwedAmount || 0;
+      } else {
+        uShare = txAmt / 2;
+      }
+
+      totalUserAmount += uShare;
+      userCategoryMap[t.category] = (userCategoryMap[t.category] || 0) + uShare;
     }
 
     const neonPalette = [
@@ -1180,57 +1223,85 @@ export function App() {
       { color: '#f43f5e', glow: 'rgba(244, 63, 94, 0.7)' },
     ];
 
-    const sorted = Object.entries(categoryMap)
-      .map(([cat, amt]) => ({
-        category: cat as Category,
-        amount: amt,
-        percentage: total > 0 ? Math.round((amt / total) * 100) : 0,
-      }))
-      .sort((a, b) => b.amount - a.amount);
+    const buildStats = (catMap: Partial<Record<Category, number>>, total: number) => {
+      const sorted = Object.entries(catMap)
+        .map(([cat, amt]) => ({
+          category: cat as Category,
+          amount: amt,
+          percentage: total > 0 ? Math.round((amt / total) * 100) : 0,
+        }))
+        .filter((item) => item.amount > 0)
+        .sort((a, b) => b.amount - a.amount);
 
-    const topCategories = sorted.slice(0, 3).map((item, idx) => {
-      const catMeta = CATEGORIES[item.category];
-      const palette = neonPalette[idx % neonPalette.length];
-      return {
-        name: catMeta ? catMeta.label : item.category,
-        percentage: item.percentage,
-        color: palette.color,
-        glowColor: palette.glow,
-      };
-    });
+      return sorted.slice(0, 3).map((item, idx) => {
+        const catMeta = CATEGORIES[item.category];
+        const palette = neonPalette[idx % neonPalette.length];
+        return {
+          name: catMeta ? catMeta.label : item.category,
+          amount: Math.round(item.amount * 100) / 100,
+          percentage: item.percentage,
+          color: palette.color,
+          glowColor: palette.glow,
+        };
+      });
+    };
 
     return {
-      totalSpent: Math.round(total * 100) / 100,
-      categoryStats: topCategories,
+      userSpent: Math.round(totalUserAmount * 100) / 100,
+      totalShared: Math.round(totalSharedAmount * 100) / 100,
+      totalSpent: Math.round(totalUserAmount * 100) / 100,
+      userCategoryStats: buildStats(userCategoryMap, totalUserAmount),
+      categoryStats: buildStats(sharedCategoryMap, totalSharedAmount),
     };
-  }, [state.transactions]);
+  }, [state.transactions, activeUser.id, activePartner.id]);
 
   // Dynamic This Month vs Last Month for ThisMonthCard
   const { thisMonthSpend, lastMonthSpend, momPercentChange } = useMemo(() => {
-    const expenseTxs = state.transactions.filter((t) => !t.isSettlement);
+    const validExpenseTxs = state.transactions.filter((t) => {
+      if (t.isSettlement || t.category === 'settlement' || t.type === 'settlement') return false;
+      if (t.isLoan || t.category === 'loan' || t.type === 'loan') return false;
+      if (
+        t.approvalStatus === 'pending_approval' ||
+        t.approvalStatus === 'on_hold' ||
+        t.approvalStatus === 'disputed_review' ||
+        t.approvalStatus === 'rejected'
+      ) {
+        return false;
+      }
+      return true;
+    });
+
     const now = new Date();
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth();
 
-    const currentMonthExpenses = expenseTxs.filter((t) => {
-      if (!t.date) return false;
-      const parts = t.date.split('-');
-      if (parts.length < 2) return false;
-      return parseInt(parts[0], 10) === currentYear && parseInt(parts[1], 10) - 1 === currentMonth;
-    });
-    const currentSpend = currentMonthExpenses.reduce((sum, t) => sum + t.amount, 0);
+    const getMonthUserSpend = (year: number, month: number) => {
+      const monthTxs = validExpenseTxs.filter((t) => {
+        if (!t.date) return false;
+        const parts = t.date.split('-');
+        if (parts.length < 2) return false;
+        return parseInt(parts[0], 10) === year && parseInt(parts[1], 10) - 1 === month;
+      });
+
+      return monthTxs.reduce((sum, t) => {
+        let uShare = 0;
+        if (t.paidBy === activeUser.id) {
+          uShare = Math.max(0, t.amount - (t.payerOwedAmount || 0));
+        } else if (t.paidBy === activePartner.id) {
+          uShare = t.payerOwedAmount || 0;
+        } else {
+          uShare = t.amount / 2;
+        }
+        return sum + uShare;
+      }, 0);
+    };
+
+    const currentSpend = getMonthUserSpend(currentYear, currentMonth);
 
     const prevMonthDate = new Date(currentYear, currentMonth - 1, 1);
     const prevYear = prevMonthDate.getFullYear();
     const prevMonth = prevMonthDate.getMonth();
-
-    const prevMonthExpenses = expenseTxs.filter((t) => {
-      if (!t.date) return false;
-      const parts = t.date.split('-');
-      if (parts.length < 2) return false;
-      return parseInt(parts[0], 10) === prevYear && parseInt(parts[1], 10) - 1 === prevMonth;
-    });
-    const prevSpend = prevMonthExpenses.reduce((sum, t) => sum + t.amount, 0);
+    const prevSpend = getMonthUserSpend(prevYear, prevMonth);
 
     let change = 0;
     if (prevSpend > 0) {
@@ -1244,7 +1315,7 @@ export function App() {
       lastMonthSpend: Math.round(prevSpend * 100) / 100,
       momPercentChange: Math.abs(change),
     };
-  }, [state.transactions]);
+  }, [state.transactions, activeUser.id, activePartner.id]);
 
   if (!isAuthenticated) {
     return (
@@ -1403,8 +1474,12 @@ export function App() {
                 {/* Spending Overview Donut Chart */}
                 <SpendingOverviewCard
                   totalSpent={totalSpent}
+                  userSpent={userSpent}
+                  totalShared={totalShared}
                   currency={state.currency}
                   categories={categoryStats}
+                  userCategories={userCategoryStats}
+                  sharedCategories={categoryStats}
                   onCategoryClick={() => setActiveNav('categories')}
                 />
 

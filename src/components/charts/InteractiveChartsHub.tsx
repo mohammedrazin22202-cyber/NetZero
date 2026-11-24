@@ -38,16 +38,30 @@ export const InteractiveChartsHub: React.FC<InteractiveChartsHubProps> = ({ stat
   const activeUser = state.activeUserId === state.user1.id ? state.user1 : state.user2;
   const friend = state.activeUserId === state.user1.id ? state.user2 : state.user1;
 
-  // Filter transactions by timeframe
+  // Filter transactions by timeframe (excluding settlements, loans, and unapproved transactions)
+  const isApprovedExpense = (t: any) => {
+    if (t.isSettlement || t.category === 'settlement' || t.type === 'settlement') return false;
+    if (t.isLoan || t.category === 'loan' || t.type === 'loan') return false;
+    if (
+      t.approvalStatus === 'pending_approval' ||
+      t.approvalStatus === 'on_hold' ||
+      t.approvalStatus === 'disputed_review' ||
+      t.approvalStatus === 'rejected'
+    ) {
+      return false;
+    }
+    return true;
+  };
+
   const filteredTransactions = useMemo(() => {
-    const allExpenses = state.transactions.filter((t) => !t.isSettlement);
-    if (timeframe === 'all') return state.transactions;
+    const allExpenses = state.transactions.filter(isApprovedExpense);
+    if (timeframe === 'all') return allExpenses;
 
     const now = new Date();
     if (timeframe === 'month') {
       const curYear = now.getFullYear();
       const curMonth = now.getMonth();
-      return state.transactions.filter((t) => {
+      return allExpenses.filter((t) => {
         if (!t.date) return false;
         const [y, m] = t.date.split('-').map((v) => parseInt(v, 10));
         return y === curYear && m - 1 === curMonth;
@@ -58,7 +72,7 @@ export const InteractiveChartsHub: React.FC<InteractiveChartsHubProps> = ({ stat
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       const threshold = thirtyDaysAgo.toISOString().slice(0, 10);
-      return state.transactions.filter((t) => t.date && t.date >= threshold);
+      return allExpenses.filter((t) => t.date && t.date >= threshold);
     }
 
     return allExpenses;
@@ -66,7 +80,7 @@ export const InteractiveChartsHub: React.FC<InteractiveChartsHubProps> = ({ stat
 
   // Prepared data for charts
   const expenseTransactions = useMemo(
-    () => filteredTransactions.filter((t) => !t.isSettlement),
+    () => filteredTransactions.filter(isApprovedExpense),
     [filteredTransactions]
   );
 
