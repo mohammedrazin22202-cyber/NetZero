@@ -16,6 +16,14 @@ const distPath = path.join(__dirname, '../dist');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Serialize read-modify-write operations on the AppState document to prevent concurrent races
+let stateWriteQueue = Promise.resolve();
+function enqueueStateWrite(task) {
+  const run = stateWriteQueue.then(task, task);
+  stateWriteQueue = run.catch(() => {});
+  return run;
+}
+
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
@@ -59,13 +67,15 @@ app.post('/api/state', async (req, res) => {
       return res.status(400).json({ error: 'No data provided' });
     }
 
-    const record = await AppStateModel.findOneAndUpdate(
-      { userId: 'default_user' },
-      {
-        data: incomingData,
-        updatedAt: new Date(),
-      },
-      { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
+    const record = await enqueueStateWrite(() =>
+      AppStateModel.findOneAndUpdate(
+        { userId: 'default_user' },
+        {
+          data: incomingData,
+          updatedAt: new Date(),
+        },
+        { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
+      )
     );
 
     res.json({ success: true, updatedAt: record.updatedAt });
@@ -74,6 +84,92 @@ app.post('/api/state', async (req, res) => {
     res.status(500).json({ error: 'Failed to save state', details: err.message });
   }
 });
+
+// Atomically create or update a single transaction in MongoDB Atlas without overwriting concurrent changes
+app.post('/api/transactions', async (req, res) => {
+  try {
+    const { friendId, transaction, fallbackState } = req.body || {};
+    if (!friendId || !transaction || !transaction.id) {
+      return res.status(400).json({ error: 'Missing friendId or transaction' });
+    }
+
+    const result = await enqueueStateWrite(async () => {
+      let record = await AppStateModel.findOne({ userId: 'default_user' });
+      if (!record || !record.data) {
+        const baseData = fallbackState && typeof fallbackState === 'object'
+          ? { ...fallbackState }
+          : {
+              selectedFriendId: friendId,
+              transactions: [],
+              friendTransactions: { [friendId]: [] },
+            };
+        record = new AppStateModel({
+          userId: 'default_user',
+          data: baseData,
+          updatedAt: new Date(),
+        });
+      }
+
+      const data = record.data;
+      if (!data.friendTransactions || typeof data.friendTransactions !== 'object') {
+        data.friendTransactions = {};
+      }
+
+      const existingList = Array.isArray(data.friendTransactions[friendId])
+        ? data.friendTransactions[friendId]
+        : [];
+      const existsInFriend = existingList.some((t) => t && t.id === transaction.id);
+      data.friendTransactions[friendId] = existsInFriend
+        ? existingList.map((t) => (t && t.id === transaction.id ? transaction : t))
+        : [transaction, ...existingList];
+
+      if (
+        data.selectedFriendId === friendId ||
+        !data.selectedFriendId ||
+        (Array.isArray(data.transactions) && data.transactions.some((t) => t && t.id === transaction.id))
+      ) {
+        data.transactions = data.friendTransactions[friendId];
+      }
+
+      record.markModified('data');
+      record.updatedAt = new Date();
+      await record.save();
+      return record;
+    });
+
+    console.log(`✅ [MongoDB Atlas Cluster] Saved transaction ${transaction.id} for ${friendId}`);
+    res.json({ success: true, state: result.data, updatedAt: result.updatedAt });
+  } catch (err) {
+    console.error('Error saving transaction to MongoDB:', err);
+    res.status(500).json({ error: 'Failed to save transaction in cluster', details: err.message });
+  }
+});
+
+async function mutateTransactionsInCluster(transformList) {
+  return enqueueStateWrite(async () => {
+    const record = await AppStateModel.findOne({ userId: 'default_user' });
+    if (!record || !record.data) {
+      return null;
+    }
+
+    const data = record.data;
+    if (Array.isArray(data.transactions)) {
+      data.transactions = transformList(data.transactions);
+    }
+    if (data.friendTransactions && typeof data.friendTransactions === 'object') {
+      for (const friendId of Object.keys(data.friendTransactions)) {
+        if (Array.isArray(data.friendTransactions[friendId])) {
+          data.friendTransactions[friendId] = transformList(data.friendTransactions[friendId]);
+        }
+      }
+    }
+
+    record.markModified('data');
+    record.updatedAt = new Date();
+    await record.save();
+    return record;
+  });
+}
 
 // Update specific transaction approval status directly in MongoDB Atlas cluster
 app.post('/api/transactions/:txId/approval', async (req, res) => {
@@ -85,38 +181,20 @@ app.post('/api/transactions/:txId/approval', async (req, res) => {
       return res.status(400).json({ error: 'Missing txId or approvalStatus' });
     }
 
-    const record = await AppStateModel.findOne({ userId: 'default_user' });
-    if (!record || !record.data) {
+    const record = await mutateTransactionsInCluster((list) =>
+      list.map((tx) => {
+        if (tx && tx.id === txId) {
+          tx.approvalStatus = approvalStatus;
+          if (lockedUntil !== undefined) tx.lockedUntil = lockedUntil;
+          if (deniedAt !== undefined) tx.deniedAt = deniedAt;
+          if (reviewVotes !== undefined) tx.reviewVotes = reviewVotes;
+        }
+        return tx;
+      })
+    );
+    if (!record) {
       return res.status(404).json({ error: 'No state found' });
     }
-
-    const data = record.data;
-
-    const updateTx = (tx) => {
-      if (tx && tx.id === txId) {
-        tx.approvalStatus = approvalStatus;
-        if (lockedUntil !== undefined) tx.lockedUntil = lockedUntil;
-        if (deniedAt !== undefined) tx.deniedAt = deniedAt;
-        if (reviewVotes !== undefined) tx.reviewVotes = reviewVotes;
-      }
-      return tx;
-    };
-
-    if (Array.isArray(data.transactions)) {
-      data.transactions = data.transactions.map(updateTx);
-    }
-
-    if (data.friendTransactions && typeof data.friendTransactions === 'object') {
-      for (const friendId of Object.keys(data.friendTransactions)) {
-        if (Array.isArray(data.friendTransactions[friendId])) {
-          data.friendTransactions[friendId] = data.friendTransactions[friendId].map(updateTx);
-        }
-      }
-    }
-
-    record.markModified('data');
-    record.updatedAt = new Date();
-    await record.save();
 
     console.log(`✅ [MongoDB Atlas Cluster] Updated approvalStatus of ${txId} to '${approvalStatus}'`);
     res.json({ success: true, state: record.data, updatedAt: record.updatedAt });
@@ -132,35 +210,19 @@ app.post('/api/transactions/:txId/deletion-request', async (req, res) => {
     const { txId } = req.params;
     const { deletionRequestedBy, deletionRespondentId } = req.body;
 
-    const record = await AppStateModel.findOne({ userId: 'default_user' });
-    if (!record || !record.data) {
+    const record = await mutateTransactionsInCluster((list) =>
+      list.map((tx) => {
+        if (tx && tx.id === txId) {
+          tx.deletionStatus = 'pending_deletion';
+          tx.deletionRequestedBy = deletionRequestedBy;
+          tx.deletionRespondentId = deletionRespondentId;
+        }
+        return tx;
+      })
+    );
+    if (!record) {
       return res.status(404).json({ error: 'No state found' });
     }
-
-    const data = record.data;
-    const updateTx = (tx) => {
-      if (tx && tx.id === txId) {
-        tx.deletionStatus = 'pending_deletion';
-        tx.deletionRequestedBy = deletionRequestedBy;
-        tx.deletionRespondentId = deletionRespondentId;
-      }
-      return tx;
-    };
-
-    if (Array.isArray(data.transactions)) {
-      data.transactions = data.transactions.map(updateTx);
-    }
-    if (data.friendTransactions && typeof data.friendTransactions === 'object') {
-      for (const friendId of Object.keys(data.friendTransactions)) {
-        if (Array.isArray(data.friendTransactions[friendId])) {
-          data.friendTransactions[friendId] = data.friendTransactions[friendId].map(updateTx);
-        }
-      }
-    }
-
-    record.markModified('data');
-    record.updatedAt = new Date();
-    await record.save();
 
     console.log(`✅ [MongoDB Atlas Cluster] Deletion requested for ${txId} by ${deletionRequestedBy}`);
     res.json({ success: true, state: record.data, updatedAt: record.updatedAt });
@@ -175,27 +237,12 @@ app.post('/api/transactions/:txId/deletion-approve', async (req, res) => {
   try {
     const { txId } = req.params;
 
-    const record = await AppStateModel.findOne({ userId: 'default_user' });
-    if (!record || !record.data) {
+    const record = await mutateTransactionsInCluster((list) =>
+      list.filter((t) => t && t.id !== txId)
+    );
+    if (!record) {
       return res.status(404).json({ error: 'No state found' });
     }
-
-    const data = record.data;
-
-    if (Array.isArray(data.transactions)) {
-      data.transactions = data.transactions.filter((t) => t && t.id !== txId);
-    }
-    if (data.friendTransactions && typeof data.friendTransactions === 'object') {
-      for (const friendId of Object.keys(data.friendTransactions)) {
-        if (Array.isArray(data.friendTransactions[friendId])) {
-          data.friendTransactions[friendId] = data.friendTransactions[friendId].filter((t) => t && t.id !== txId);
-        }
-      }
-    }
-
-    record.markModified('data');
-    record.updatedAt = new Date();
-    await record.save();
 
     console.log(`✅ [MongoDB Atlas Cluster] Deletion approved and purged: ${txId}`);
     res.json({ success: true, state: record.data, updatedAt: record.updatedAt });
@@ -210,35 +257,19 @@ app.post('/api/transactions/:txId/deletion-reject', async (req, res) => {
   try {
     const { txId } = req.params;
 
-    const record = await AppStateModel.findOne({ userId: 'default_user' });
-    if (!record || !record.data) {
+    const record = await mutateTransactionsInCluster((list) =>
+      list.map((tx) => {
+        if (tx && tx.id === txId) {
+          delete tx.deletionStatus;
+          delete tx.deletionRequestedBy;
+          delete tx.deletionRespondentId;
+        }
+        return tx;
+      })
+    );
+    if (!record) {
       return res.status(404).json({ error: 'No state found' });
     }
-
-    const data = record.data;
-    const updateTx = (tx) => {
-      if (tx && tx.id === txId) {
-        delete tx.deletionStatus;
-        delete tx.deletionRequestedBy;
-        delete tx.deletionRespondentId;
-      }
-      return tx;
-    };
-
-    if (Array.isArray(data.transactions)) {
-      data.transactions = data.transactions.map(updateTx);
-    }
-    if (data.friendTransactions && typeof data.friendTransactions === 'object') {
-      for (const friendId of Object.keys(data.friendTransactions)) {
-        if (Array.isArray(data.friendTransactions[friendId])) {
-          data.friendTransactions[friendId] = data.friendTransactions[friendId].map(updateTx);
-        }
-      }
-    }
-
-    record.markModified('data');
-    record.updatedAt = new Date();
-    await record.save();
 
     console.log(`✅ [MongoDB Atlas Cluster] Deletion rejected/cancelled for ${txId}`);
     res.json({ success: true, state: record.data, updatedAt: record.updatedAt });

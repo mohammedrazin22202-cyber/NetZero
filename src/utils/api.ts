@@ -1,8 +1,32 @@
-import { AppState } from '../types';
+import { AppState, Transaction } from '../types';
 
 export interface DatabaseHealth {
   connected: boolean;
   status: string;
+}
+
+let saveTimeout: ReturnType<typeof setTimeout> | null = null;
+let inFlightSyncCount = 0;
+let syncGeneration = 0;
+
+export function isCloudSyncBusy(): boolean {
+  return saveTimeout !== null || inFlightSyncCount > 0;
+}
+
+export function getSyncGeneration(): number {
+  return syncGeneration;
+}
+
+export function bumpSyncGeneration(): number {
+  syncGeneration += 1;
+  return syncGeneration;
+}
+
+export function cancelPendingStateSync(): void {
+  if (saveTimeout !== null) {
+    clearTimeout(saveTimeout);
+    saveTimeout = null;
+  }
 }
 
 export async function checkDatabaseHealth(): Promise<DatabaseHealth> {
@@ -40,15 +64,15 @@ export async function fetchCloudState(): Promise<AppState | null> {
   }
 }
 
-let saveTimeout: any = null;
-
 export function syncStateToCloud(state: AppState): void {
-  // Debounce sync so frequent typing or slider changes batch into a single network call
-  if (saveTimeout) {
-    clearTimeout(saveTimeout);
-  }
+  // Mark local state as newer immediately so in-flight polls cannot overwrite it
+  bumpSyncGeneration();
+  cancelPendingStateSync();
 
+  // Debounce sync so frequent typing or slider changes batch into a single network call
   saveTimeout = setTimeout(async () => {
+    saveTimeout = null;
+    inFlightSyncCount += 1;
     try {
       await fetch('/api/state', {
         method: 'POST',
@@ -59,8 +83,48 @@ export function syncStateToCloud(state: AppState): void {
       });
     } catch (err) {
       console.warn('Failed to sync state to MongoDB Atlas:', err);
+    } finally {
+      inFlightSyncCount = Math.max(0, inFlightSyncCount - 1);
     }
   }, 500);
+}
+
+async function postClusterAction(
+  url: string,
+  body: unknown | undefined,
+  errorLabel: string
+): Promise<AppState | null> {
+  bumpSyncGeneration();
+  inFlightSyncCount += 1;
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return (data.state as AppState) || null;
+  } catch (err) {
+    console.warn(`${errorLabel}:`, err);
+    return null;
+  } finally {
+    inFlightSyncCount = Math.max(0, inFlightSyncCount - 1);
+  }
+}
+
+export async function saveTransactionInCloud(
+  friendId: string,
+  transaction: Transaction,
+  fallbackState?: AppState
+): Promise<AppState | null> {
+  return postClusterAction(
+    '/api/transactions',
+    { friendId, transaction, fallbackState },
+    'Failed to save transaction in cloud cluster'
+  );
 }
 
 export async function updateTransactionApprovalInCloud(
@@ -72,21 +136,11 @@ export async function updateTransactionApprovalInCloud(
     reviewVotes?: Record<string, boolean>;
   }
 ): Promise<AppState | null> {
-  try {
-    const res = await fetch(`/api/transactions/${encodeURIComponent(txId)}/approval`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(approvalData),
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.state as AppState;
-  } catch (err) {
-    console.warn('Failed to update transaction approval in cloud cluster:', err);
-    return null;
-  }
+  return postClusterAction(
+    `/api/transactions/${encodeURIComponent(txId)}/approval`,
+    approvalData,
+    'Failed to update transaction approval in cloud cluster'
+  );
 }
 
 export async function requestTransactionDeletionInCloud(
@@ -96,53 +150,25 @@ export async function requestTransactionDeletionInCloud(
     deletionRespondentId: string;
   }
 ): Promise<AppState | null> {
-  try {
-    const res = await fetch(`/api/transactions/${encodeURIComponent(txId)}/deletion-request`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.state as AppState;
-  } catch (err) {
-    console.warn('Failed to request transaction deletion in cloud cluster:', err);
-    return null;
-  }
+  return postClusterAction(
+    `/api/transactions/${encodeURIComponent(txId)}/deletion-request`,
+    payload,
+    'Failed to request transaction deletion in cloud cluster'
+  );
 }
 
 export async function approveTransactionDeletionInCloud(txId: string): Promise<AppState | null> {
-  try {
-    const res = await fetch(`/api/transactions/${encodeURIComponent(txId)}/deletion-approve`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.state as AppState;
-  } catch (err) {
-    console.warn('Failed to approve transaction deletion in cloud cluster:', err);
-    return null;
-  }
+  return postClusterAction(
+    `/api/transactions/${encodeURIComponent(txId)}/deletion-approve`,
+    undefined,
+    'Failed to approve transaction deletion in cloud cluster'
+  );
 }
 
 export async function rejectTransactionDeletionInCloud(txId: string): Promise<AppState | null> {
-  try {
-    const res = await fetch(`/api/transactions/${encodeURIComponent(txId)}/deletion-reject`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.state as AppState;
-  } catch (err) {
-    console.warn('Failed to reject transaction deletion in cloud cluster:', err);
-    return null;
-  }
+  return postClusterAction(
+    `/api/transactions/${encodeURIComponent(txId)}/deletion-reject`,
+    undefined,
+    'Failed to reject transaction deletion in cloud cluster'
+  );
 }

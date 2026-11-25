@@ -5,10 +5,14 @@ import {
   fetchCloudState,
   syncStateToCloud,
   checkDatabaseHealth,
+  saveTransactionInCloud,
   updateTransactionApprovalInCloud,
   requestTransactionDeletionInCloud,
   approveTransactionDeletionInCloud,
   rejectTransactionDeletionInCloud,
+  isCloudSyncBusy,
+  getSyncGeneration,
+  bumpSyncGeneration,
 } from './utils/api';
 import { getLocalDateString, calculateBalance, formatMoney } from './utils/formatters';
 import { CATEGORIES } from './utils/categories';
@@ -113,13 +117,31 @@ export function App() {
   };
 
   const isCloudLoadedRef = useRef(false);
+  const lastCloudSnapshotRef = useRef<string>('');
+
+  const getCloudSnapshotKey = (s: AppState): string =>
+    JSON.stringify({
+      friendTransactions: s.friendTransactions,
+      friends: s.friends,
+      monthlyBudgets: s.monthlyBudgets,
+      recurringExpenses: s.recurringExpenses,
+      currency: s.currency,
+      currentUser: s.currentUser,
+      shortcuts: s.shortcuts,
+    });
 
   // Sync state to local storage and MongoDB Atlas on change (only after initial cloud pull)
   useEffect(() => {
     saveAppState(state);
-    if (isCloudLoadedRef.current) {
-      syncStateToCloud(state);
+    if (!isCloudLoadedRef.current) return;
+
+    const currentSnapshot = getCloudSnapshotKey(state);
+    if (currentSnapshot === lastCloudSnapshotRef.current) {
+      return;
     }
+
+    lastCloudSnapshotRef.current = currentSnapshot;
+    syncStateToCloud(state);
   }, [state]);
 
   const [dbStatus, setDbStatus] = useState<'checking' | 'connected' | 'disconnected'>('checking');
@@ -129,21 +151,17 @@ export function App() {
     let isMounted = true;
 
     const pullFromCluster = async () => {
+      // Never pull stale state while local changes are debouncing or saving to the cluster
+      if (isCloudSyncBusy()) return;
+      const startGen = getSyncGeneration();
+
       try {
         const cloudState = await fetchCloudState();
         if (!isMounted || !cloudState) return;
+        // Discard response if a local edit or cloud write started while GET was in-flight
+        if (isCloudSyncBusy() || getSyncGeneration() !== startGen) return;
 
         setState((prev) => {
-          const prevTxsJson = JSON.stringify(prev.transactions);
-          const cloudTxsJson = JSON.stringify(cloudState.transactions);
-          const prevFriendTxsJson = JSON.stringify(prev.friendTransactions);
-          const cloudFriendTxsJson = JSON.stringify(cloudState.friendTransactions);
-
-          // If no transaction or ledger data has changed, do not cause re-render
-          if (prevTxsJson === cloudTxsJson && prevFriendTxsJson === cloudFriendTxsJson) {
-            return prev;
-          }
-
           const hasExistingFriend = cloudState.friends?.some((f) => f.id === prev.selectedFriendId);
           const activeFriendId = hasExistingFriend
             ? prev.selectedFriendId
@@ -154,20 +172,43 @@ export function App() {
             cloudState.transactions ||
             prev.transactions;
 
-          return {
+          const updatedFriends =
+            cloudState.friends && cloudState.friends.length > 0 ? cloudState.friends : prev.friends;
+          const updatedFriendTxs = cloudState.friendTransactions || prev.friendTransactions;
+          const updatedBudgets = cloudState.monthlyBudgets || prev.monthlyBudgets;
+          const updatedRecurring = cloudState.recurringExpenses || prev.recurringExpenses;
+          const updatedCurrency = cloudState.currency || prev.currency;
+
+          // If no shared ledger data has changed, do not cause re-render
+          if (
+            JSON.stringify(prev.transactions) === JSON.stringify(updatedActiveTxs) &&
+            JSON.stringify(prev.friendTransactions) === JSON.stringify(updatedFriendTxs) &&
+            JSON.stringify(prev.friends) === JSON.stringify(updatedFriends) &&
+            JSON.stringify(prev.monthlyBudgets) === JSON.stringify(updatedBudgets) &&
+            JSON.stringify(prev.recurringExpenses) === JSON.stringify(updatedRecurring) &&
+            JSON.stringify(prev.currency) === JSON.stringify(updatedCurrency)
+          ) {
+            return prev;
+          }
+
+          const nextState: AppState = {
             ...prev,
             transactions: updatedActiveTxs,
-            friendTransactions: cloudState.friendTransactions || prev.friendTransactions,
-            friends: cloudState.friends && cloudState.friends.length > 0 ? cloudState.friends : prev.friends,
-            monthlyBudgets: cloudState.monthlyBudgets || prev.monthlyBudgets,
-            recurringExpenses: cloudState.recurringExpenses || prev.recurringExpenses,
-            currency: cloudState.currency || prev.currency,
+            friendTransactions: updatedFriendTxs,
+            friends: updatedFriends,
+            monthlyBudgets: updatedBudgets,
+            recurringExpenses: updatedRecurring,
+            currency: updatedCurrency,
             // Preserve device-local view state
             activeUserId: prev.activeUserId,
             currentUser: prev.currentUser,
             selectedFriendId: activeFriendId,
             theme: prev.theme,
           };
+
+          // Prevent useEffect([state]) from echoing pulled cloud state back to POST /api/state
+          lastCloudSnapshotRef.current = getCloudSnapshotKey(nextState);
+          return nextState;
         });
       } catch (err) {
         console.warn('Cluster sync check failed:', err);
@@ -178,16 +219,17 @@ export function App() {
       if (isMounted) setDbStatus(res.connected ? 'connected' : 'disconnected');
     });
 
+    const initialStartGen = getSyncGeneration();
     fetchCloudState().then((cloudState) => {
       if (isMounted) {
-        if (cloudState) {
+        if (cloudState && !isCloudSyncBusy() && getSyncGeneration() === initialStartGen) {
           setState((prev) => {
             const hasExistingFriend = cloudState.friends?.some((f) => f.id === prev.selectedFriendId);
             const activeFriendId = hasExistingFriend
               ? prev.selectedFriendId
               : (cloudState.selectedFriendId || cloudState.friends?.[0]?.id || prev.user2.id);
 
-            return {
+            const nextState: AppState = {
               ...cloudState,
               activeUserId: prev.activeUserId || cloudState.activeUserId || 'user_1',
               currentUser: prev.currentUser?.name && prev.currentUser.name !== 'MegaTron'
@@ -200,6 +242,9 @@ export function App() {
                 cloudState.transactions ||
                 prev.transactions,
             };
+
+            lastCloudSnapshotRef.current = getCloudSnapshotKey(nextState);
+            return nextState;
           });
         }
         isCloudLoadedRef.current = true;
@@ -461,15 +506,15 @@ export function App() {
   }, [isAuthenticated]);
 
   // Transaction Approval & 72-Hour Hold handlers
-  const handleAcceptTransaction = (txId: string) => {
-    triggerConfetti();
-    triggerHaptic('success');
+  const applyTxUpdate = (
+    transform: (txs: Transaction[]) => Transaction[],
+    skipFullSync: boolean
+  ) => {
+    bumpSyncGeneration();
     setState((prev) => {
       const activeFriendId = prev.selectedFriendId || prev.user2.id;
-      const updatedTxs = prev.transactions.map((t) =>
-        t.id === txId ? { ...t, approvalStatus: 'approved' as const } : t
-      );
-      return {
+      const updatedTxs = transform(prev.transactions);
+      const nextState: AppState = {
         ...prev,
         transactions: updatedTxs,
         friendTransactions: {
@@ -477,7 +522,21 @@ export function App() {
           [activeFriendId]: updatedTxs,
         },
       };
+      if (skipFullSync) {
+        lastCloudSnapshotRef.current = getCloudSnapshotKey(nextState);
+      }
+      return nextState;
     });
+  };
+
+  const handleAcceptTransaction = (txId: string) => {
+    triggerConfetti();
+    triggerHaptic('success');
+    const useTargeted = !isCloudSyncBusy();
+    applyTxUpdate(
+      (txs) => txs.map((t) => (t.id === txId ? { ...t, approvalStatus: 'approved' as const } : t)),
+      useTargeted
+    );
 
     // Instantly persist approval status to MongoDB Atlas Cluster
     updateTransactionApprovalInCloud(txId, { approvalStatus: 'approved' });
@@ -487,28 +546,22 @@ export function App() {
     triggerHaptic('error');
     const now = Date.now();
     const lockedUntil = now + 72 * 60 * 60 * 1000;
-    setState((prev) => {
-      const activeFriendId = prev.selectedFriendId || prev.user2.id;
-      const updatedTxs = prev.transactions.map((t) =>
-        t.id === txId
-          ? {
-              ...t,
-              approvalStatus: 'on_hold' as const,
-              deniedAt: now,
-              lockedUntil,
-              reviewVotes: {},
-            }
-          : t
-      );
-      return {
-        ...prev,
-        transactions: updatedTxs,
-        friendTransactions: {
-          ...prev.friendTransactions,
-          [activeFriendId]: updatedTxs,
-        },
-      };
-    });
+    const useTargeted = !isCloudSyncBusy();
+    applyTxUpdate(
+      (txs) =>
+        txs.map((t) =>
+          t.id === txId
+            ? {
+                ...t,
+                approvalStatus: 'on_hold' as const,
+                deniedAt: now,
+                lockedUntil,
+                reviewVotes: {},
+              }
+            : t
+        ),
+      useTargeted
+    );
 
     // Instantly persist hold status to MongoDB Atlas Cluster
     updateTransactionApprovalInCloud(txId, {
@@ -522,26 +575,20 @@ export function App() {
   const handleFastForwardHold = (txId: string) => {
     triggerHaptic('medium');
     const lockedUntil = Date.now() - 1000;
-    setState((prev) => {
-      const activeFriendId = prev.selectedFriendId || prev.user2.id;
-      const updatedTxs = prev.transactions.map((t) =>
-        t.id === txId
-          ? {
-              ...t,
-              approvalStatus: 'disputed_review' as const,
-              lockedUntil,
-            }
-          : t
-      );
-      return {
-        ...prev,
-        transactions: updatedTxs,
-        friendTransactions: {
-          ...prev.friendTransactions,
-          [activeFriendId]: updatedTxs,
-        },
-      };
-    });
+    const useTargeted = !isCloudSyncBusy();
+    applyTxUpdate(
+      (txs) =>
+        txs.map((t) =>
+          t.id === txId
+            ? {
+                ...t,
+                approvalStatus: 'disputed_review' as const,
+                lockedUntil,
+              }
+            : t
+        ),
+      useTargeted
+    );
 
     // Instantly persist disputed review to MongoDB Atlas Cluster
     updateTransactionApprovalInCloud(txId, {
@@ -554,50 +601,43 @@ export function App() {
     triggerHaptic(isTrue ? 'success' : 'error');
     let finalStatus: any = undefined;
     let finalVotes: Record<string, boolean> = {};
+    const useTargeted = !isCloudSyncBusy();
 
-    setState((prev) => {
-      const activeFriendId = prev.selectedFriendId || prev.user2.id;
-      const updatedTxs = prev.transactions.map((t) => {
-        if (t.id !== txId) return t;
+    applyTxUpdate(
+      (txs) =>
+        txs.map((t) => {
+          if (t.id !== txId) return t;
 
-        const currentVotes = { ...(t.reviewVotes || {}) };
-        currentVotes[activeUser.id] = isTrue;
+          const currentVotes = { ...(t.reviewVotes || {}) };
+          currentVotes[activeUser.id] = isTrue;
 
-        // Check if both parties have voted
-        const userVote = currentVotes[activeUser.id];
-        const partnerVote = currentVotes[activePartner.id];
+          // Check if both parties have voted
+          const userVote = currentVotes[activeUser.id];
+          const partnerVote = currentVotes[activePartner.id];
 
-        let newStatus = t.approvalStatus;
+          let newStatus = t.approvalStatus;
 
-        // "if both said true. record it and vice versa"
-        if (userVote !== undefined && partnerVote !== undefined) {
-          if (userVote === true && partnerVote === true) {
-            newStatus = 'approved';
-            triggerConfetti();
-          } else {
-            newStatus = 'rejected';
+          // "if both said true. record it and vice versa"
+          if (userVote !== undefined && partnerVote !== undefined) {
+            if (userVote === true && partnerVote === true) {
+              newStatus = 'approved';
+              triggerConfetti();
+            } else {
+              newStatus = 'rejected';
+            }
           }
-        }
 
-        finalStatus = newStatus;
-        finalVotes = currentVotes;
+          finalStatus = newStatus;
+          finalVotes = currentVotes;
 
-        return {
-          ...t,
-          approvalStatus: newStatus,
-          reviewVotes: currentVotes,
-        };
-      });
-
-      return {
-        ...prev,
-        transactions: updatedTxs,
-        friendTransactions: {
-          ...prev.friendTransactions,
-          [activeFriendId]: updatedTxs,
-        },
-      };
-    });
+          return {
+            ...t,
+            approvalStatus: newStatus,
+            reviewVotes: currentVotes,
+          };
+        }),
+      useTargeted
+    );
 
     if (finalStatus) {
       updateTransactionApprovalInCloud(txId, {
@@ -694,45 +734,53 @@ export function App() {
   const handleSaveTransaction = (txData: Omit<Transaction, 'id' | 'createdAt'>) => {
     const now = new Date();
     const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const targetFriendId = state.selectedFriendId || state.user2.id;
 
-    setState((prev) => {
-      const activeFriendId = prev.selectedFriendId || prev.user2.id;
-      let updatedTxs: Transaction[];
-
-      if (editingTransaction) {
-        updatedTxs = prev.transactions.map((t) =>
-          t.id === editingTransaction.id
-            ? {
-                ...txData,
-                id: t.id,
-                time: t.time || timeStr,
-                createdAt: t.createdAt,
-              }
-            : t
-        );
-      } else {
-        const newTx: Transaction = {
+    const savedTx: Transaction = editingTransaction
+      ? {
+          ...editingTransaction,
           ...txData,
-          id: 'tx_' + Date.now(),
+          id: editingTransaction.id,
+          time: editingTransaction.time || timeStr,
+          createdAt: editingTransaction.createdAt,
+        }
+      : {
+          ...txData,
+          id: 'tx_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
           time: timeStr,
           createdAt: Date.now(),
           approvalStatus: 'pending_approval',
           approvalRequestedBy: activeUser.id,
           approvalRespondentId: activePartner.id,
         };
-        updatedTxs = [newTx, ...prev.transactions];
-      }
 
-      return {
-        ...prev,
-        transactions: updatedTxs,
-        friendTransactions: {
-          ...prev.friendTransactions,
-          [activeFriendId]: updatedTxs,
-        },
-      };
-    });
+    const useTargetedEndpoint = !isCloudSyncBusy();
+    const transform = (txs: Transaction[]) => {
+      const exists = txs.some((t) => t.id === savedTx.id);
+      return exists ? txs.map((t) => (t.id === savedTx.id ? savedTx : t)) : [savedTx, ...txs];
+    };
 
+    const optimisticTxs = transform(state.transactions);
+    const optimisticState: AppState = {
+      ...state,
+      transactions: optimisticTxs,
+      friendTransactions: {
+        ...state.friendTransactions,
+        [targetFriendId]: optimisticTxs,
+      },
+    };
+
+    applyTxUpdate(transform, useTargetedEndpoint);
+
+    if (useTargetedEndpoint) {
+      saveTransactionInCloud(targetFriendId, savedTx, optimisticState).then((cloudState) => {
+        if (!cloudState && isCloudLoadedRef.current) {
+          syncStateToCloud(optimisticState);
+        }
+      });
+    }
+
+    setEditingTransaction(null);
     triggerHaptic('success');
   };
 
@@ -760,18 +808,8 @@ export function App() {
 
     if (isUnapprovedByMe) {
       if (window.confirm(`Withdraw and delete your pending transaction "${targetTx.title}"?`)) {
-        setState((prev) => {
-          const activeFriendId = prev.selectedFriendId || prev.user2.id;
-          const updatedTxs = prev.transactions.filter((t) => t.id !== id);
-          return {
-            ...prev,
-            transactions: updatedTxs,
-            friendTransactions: {
-              ...prev.friendTransactions,
-              [activeFriendId]: updatedTxs,
-            },
-          };
-        });
+        const useTargeted = !isCloudSyncBusy();
+        applyTxUpdate((txs) => txs.filter((t) => t.id !== id), useTargeted);
         approveTransactionDeletionInCloud(id);
         triggerHaptic('light');
       }
@@ -785,27 +823,21 @@ export function App() {
       : `Deleting "${targetTx.title}" (${formatMoney(targetTx.amount, state.currency)}) requires confirmation from ${partnerName}.\n\nSend deletion approval request to ${partnerName}?`;
 
     if (window.confirm(confirmMessage)) {
-      setState((prev) => {
-        const activeFriendId = prev.selectedFriendId || prev.user2.id;
-        const updatedTxs = prev.transactions.map((t) =>
-          t.id === id
-            ? {
-                ...t,
-                deletionStatus: 'pending_deletion' as const,
-                deletionRequestedBy: activeUser.id,
-                deletionRespondentId: activePartner.id,
-              }
-            : t
-        );
-        return {
-          ...prev,
-          transactions: updatedTxs,
-          friendTransactions: {
-            ...prev.friendTransactions,
-            [activeFriendId]: updatedTxs,
-          },
-        };
-      });
+      const useTargeted = !isCloudSyncBusy();
+      applyTxUpdate(
+        (txs) =>
+          txs.map((t) =>
+            t.id === id
+              ? {
+                  ...t,
+                  deletionStatus: 'pending_deletion' as const,
+                  deletionRequestedBy: activeUser.id,
+                  deletionRespondentId: activePartner.id,
+                }
+              : t
+          ),
+        useTargeted
+      );
 
       requestTransactionDeletionInCloud(id, {
         deletionRequestedBy: activeUser.id,
@@ -824,18 +856,8 @@ export function App() {
       return;
     }
 
-    setState((prev) => {
-      const activeFriendId = prev.selectedFriendId || prev.user2.id;
-      const updatedTxs = prev.transactions.filter((t) => t.id !== id);
-      return {
-        ...prev,
-        transactions: updatedTxs,
-        friendTransactions: {
-          ...prev.friendTransactions,
-          [activeFriendId]: updatedTxs,
-        },
-      };
-    });
+    const useTargeted = !isCloudSyncBusy();
+    applyTxUpdate((txs) => txs.filter((t) => t.id !== id), useTargeted);
 
     approveTransactionDeletionInCloud(id);
     triggerHaptic('success');
@@ -843,24 +865,18 @@ export function App() {
 
   // Reject / Cancel deletion request (keep record active)
   const handleRejectDeletion = (id: string) => {
-    setState((prev) => {
-      const activeFriendId = prev.selectedFriendId || prev.user2.id;
-      const updatedTxs = prev.transactions.map((t) => {
-        if (t.id === id) {
-          const { deletionStatus, deletionRequestedBy, deletionRespondentId, ...rest } = t;
-          return rest as Transaction;
-        }
-        return t;
-      });
-      return {
-        ...prev,
-        transactions: updatedTxs,
-        friendTransactions: {
-          ...prev.friendTransactions,
-          [activeFriendId]: updatedTxs,
-        },
-      };
-    });
+    const useTargeted = !isCloudSyncBusy();
+    applyTxUpdate(
+      (txs) =>
+        txs.map((t) => {
+          if (t.id === id) {
+            const { deletionStatus, deletionRequestedBy, deletionRespondentId, ...rest } = t;
+            return rest as Transaction;
+          }
+          return t;
+        }),
+      useTargeted
+    );
 
     rejectTransactionDeletionInCloud(id);
     triggerHaptic('light');
@@ -903,8 +919,9 @@ export function App() {
   const handleSettle = (amount: number, paidBy: string, beneficiaryId: string, note: string) => {
     const now = new Date();
     const roundedAmount = Math.round(amount * 100) / 100;
+    const targetFriendId = state.selectedFriendId || state.user2.id;
     const settleTx: Transaction = {
-      id: 'settle_' + Date.now(),
+      id: 'settle_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
       title: 'Settled Balance',
       amount: roundedAmount,
       paidBy,
@@ -922,18 +939,26 @@ export function App() {
       approvalRespondentId: activePartner.id,
     };
 
-    setState((prev) => {
-      const activeFriendId = prev.selectedFriendId || prev.user2.id;
-      const updatedTxs = [settleTx, ...prev.transactions];
-      return {
-        ...prev,
-        transactions: updatedTxs,
-        friendTransactions: {
-          ...prev.friendTransactions,
-          [activeFriendId]: updatedTxs,
-        },
-      };
-    });
+    const useTargetedEndpoint = !isCloudSyncBusy();
+    const optimisticTxs = [settleTx, ...state.transactions];
+    const optimisticState: AppState = {
+      ...state,
+      transactions: optimisticTxs,
+      friendTransactions: {
+        ...state.friendTransactions,
+        [targetFriendId]: optimisticTxs,
+      },
+    };
+
+    applyTxUpdate((txs) => [settleTx, ...txs], useTargetedEndpoint);
+
+    if (useTargetedEndpoint) {
+      saveTransactionInCloud(targetFriendId, settleTx, optimisticState).then((cloudState) => {
+        if (!cloudState && isCloudLoadedRef.current) {
+          syncStateToCloud(optimisticState);
+        }
+      });
+    }
 
     triggerConfetti();
     triggerHaptic('success');
@@ -1609,7 +1634,10 @@ export function App() {
       {/* Modals */}
       <AddTransactionModal
         isOpen={isAddOpen}
-        onClose={() => setIsAddOpen(false)}
+        onClose={() => {
+          setIsAddOpen(false);
+          setEditingTransaction(null);
+        }}
         state={{
           ...state,
           currentUser: activeUser,
