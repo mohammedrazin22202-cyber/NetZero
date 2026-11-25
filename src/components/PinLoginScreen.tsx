@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { UserProfile } from '../types';
 import { triggerHaptic } from '../utils/haptics';
+import { stripBestieSuffix } from '../utils/storage';
 import { Delete, Lock, ShieldAlert, Clock } from 'lucide-react';
 
 interface PinLoginScreenProps {
@@ -199,14 +200,26 @@ export const PinLoginScreen: React.FC<PinLoginScreenProps> = ({
           </button>
         </div>
 
-        {/* Quick User Selection Pills - Only display friend account (Sam) */}
+        {/* Quick User Selection Pills */}
         <div className="w-full pt-4 border-t border-purple-100 dark:border-purple-500/20">
           <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">
             Accounts:
           </p>
           <div className="flex items-center justify-center gap-2 flex-wrap">
+            {(() => {
+              const mainName = stripBestieSuffix(currentUser.name) || 'MegaTron';
+              return (
+                <button
+                  type="button"
+                  onClick={() => handleQuickLogin({ ...currentUser, name: mainName })}
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-cyan-50 dark:bg-cyan-950/60 border border-cyan-300 dark:border-cyan-500/40 text-cyan-800 dark:text-cyan-300 text-xs font-bold hover:scale-105 transition-all shadow-sm"
+                >
+                  <span>👑 {mainName}</span>
+                </button>
+              );
+            })()}
             {friends.map((f) => {
-              const displayName = (f.name || 'Sam').replace(/\s*\([Bb]estie\)/gi, '').trim() || 'Sam';
+              const displayName = stripBestieSuffix(f.name) || 'Sam';
               return (
                 <button
                   key={f.id}
