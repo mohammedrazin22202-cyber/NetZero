@@ -294,3 +294,37 @@ html:not(.dark) .ambient-neon-bg {
 .animate-fadeIn {
   animation: fadeIn 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
+
+/* =========================================================================
+   PRINT STYLES: Excel-style Trading & P&L Statement
+   ========================================================================= */
+@page {
+  size: A4;
+  margin: 10mm;
+}
+
+@media print {
+  html,
+  body,
+  html.dark body,
+  html:not(.dark) body {
+    background: #ffffff !important;
+    background-image: none !important;
+    color: #0f172a !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  #printable-excel-statement .text-white {
+    color: #ffffff !important;
+  }
+
+  #printable-excel-statement table {
+    page-break-inside: auto;
+  }
+
+  #printable-excel-statement tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+}

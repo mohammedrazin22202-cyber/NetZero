@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { AppState, Category } from '../types';
 import { CATEGORIES } from '../utils/categories';
-import { formatMoney, formatDate } from '../utils/formatters';
+import { formatMoney } from '../utils/formatters';
 import { InteractiveChartsHub } from './charts/InteractiveChartsHub';
+import { PrintableStatement } from './PrintableStatement';
+import { buildXlsxWorkbook } from '../utils/xlsxExport';
 import {
   PieChart,
   TrendingUp,
@@ -10,6 +12,7 @@ import {
   DollarSign,
   Target,
   Printer,
+  FileSpreadsheet,
   Calendar,
   AlertTriangle,
   CheckCircle2,
@@ -125,34 +128,31 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ state, onUpdateBud
   const budgetPercent = currentBudget > 0 ? Math.min((currentMonthSpend / currentBudget) * 100, 100) : 0;
   const isOverBudget = currentBudget > 0 && currentMonthSpend > currentBudget;
 
-  return (
-    <div className="space-y-5 animate-in fade-in duration-300">
-      {/* Printable Statement Document Header (Visible only when printing) */}
-      <div className="hidden print:block mb-6 border-b-2 border-slate-900 pb-4">
-        <div className="flex items-center justify-between mb-2">
-          <div>
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight">NetZero Account Statement</h1>
-            <p className="text-xs text-slate-600">Personal & Shared Expense Ledger</p>
-          </div>
-          <div className="text-right">
-            <p className="text-xs font-bold text-slate-800">Date: {new Date().toLocaleDateString(undefined, { dateStyle: 'long' })}</p>
-            <p className="text-xs text-slate-500">Status: {state.transactions.length} Total Records</p>
-          </div>
-        </div>
-        <div className="p-3 bg-slate-100 rounded-lg text-xs grid grid-cols-2 gap-4 mt-2">
-          <div>
-            <span className="text-slate-500 font-semibold block uppercase text-[10px]">Parties</span>
-            <span className="font-bold text-slate-900">{state.currentUser.name} & {friend.name}</span>
-          </div>
-          <div>
-            <span className="text-slate-500 font-semibold block uppercase text-[10px]">Total Shared Expenditure</span>
-            <span className="font-bold text-slate-900">{formatMoney(totalSpentTogether, state.currency)}</span>
-          </div>
-        </div>
-      </div>
+  const handleExportExcel = async () => {
+    const buffer = await buildXlsxWorkbook(state);
+    const blob = new Blob([buffer], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const friendSlug = (friend.name || 'ledger').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    a.download = `netzero-trading-pnl-${friendSlug}-${new Date().toISOString().slice(0, 10)}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
+  return (
+    <div className="space-y-5 animate-in fade-in duration-300 print:space-y-0">
+      {/* Dedicated Excel-style Trading & Profit & Loss Statement (Visible only when printing / PDF export) */}
+      <PrintableStatement state={state} />
+
+      {/* Screen-only Analytics Dashboard (Hidden when printing statement) */}
+      <div className="space-y-5 print:hidden">
       {/* Action Header: Month Summary & Print Statement */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
             <Calendar className="w-4 h-4 text-emerald-500" />
@@ -162,14 +162,26 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ state, onUpdateBud
             Insights for shared ledger with {friend.name}
           </p>
         </div>
-        <button
-          onClick={() => window.print()}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/80 transition-colors shadow-sm"
-          title="Print or export statement"
-        >
-          <Printer className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
-          <span>Statement</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleExportExcel}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-emerald-300 dark:border-emerald-600/50 bg-emerald-50 dark:bg-emerald-950/50 text-xs font-semibold text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 transition-colors shadow-sm"
+            title="Download native Excel Trading & P&L workbook (.xlsx)"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5" />
+            <span>Excel (.xlsx)</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/80 transition-colors shadow-sm"
+            title="Print or export Excel-style Trading & P&L statement"
+          >
+            <Printer className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
+            <span>Statement</span>
+          </button>
+        </div>
       </div>
 
       {/* Top Cards */}
@@ -420,36 +432,6 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ state, onUpdateBud
           </div>
         )}
       </div>
-
-      {/* Printable Ledger Itemized Records Table (Visible only when printing) */}
-      <div className="hidden print:block mt-8">
-        <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900 mb-3">Itemized Activity Log</h3>
-        <table className="w-full text-xs text-left border-collapse">
-          <thead>
-            <tr className="border-b-2 border-slate-300 text-slate-700">
-              <th className="py-2 px-1">Date</th>
-              <th className="py-2 px-1">Description</th>
-              <th className="py-2 px-1">Category</th>
-              <th className="py-2 px-1">Paid By</th>
-              <th className="py-2 px-1 text-right">Total</th>
-              <th className="py-2 px-1 text-right">Share Owed</th>
-            </tr>
-          </thead>
-          <tbody>
-            {state.transactions.map((tx) => (
-              <tr key={tx.id} className="border-b border-slate-200">
-                <td className="py-2 px-1 whitespace-nowrap">{formatDate(tx.date)}</td>
-                <td className="py-2 px-1 font-medium">{tx.title}</td>
-                <td className="py-2 px-1 capitalize text-slate-600">{tx.category}</td>
-                <td className="py-2 px-1">{tx.paidBy === state.currentUser.id ? 'You' : friend.name.split(' ')[0]}</td>
-                <td className="py-2 px-1 text-right font-mono">{formatMoney(tx.amount, state.currency)}</td>
-                <td className="py-2 px-1 text-right font-mono font-bold">
-                  {tx.isSettlement ? 'Settled' : formatMoney(tx.payerOwedAmount, state.currency)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
       </div>
     </div>
   );

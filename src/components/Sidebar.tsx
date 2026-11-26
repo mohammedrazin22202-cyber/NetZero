@@ -32,7 +32,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenUpgrade,
 }) => {
   return (
-    <aside className="w-56 min-w-[220px] shrink-0 min-h-screen flex flex-col justify-between p-5 z-20 select-none">
+    <aside className="w-56 min-w-[220px] shrink-0 min-h-screen flex flex-col justify-between p-5 z-20 select-none print:hidden">
       <div>
         {/* Brand Logo & Name */}
         <div className="flex items-center gap-3 mb-8 pl-1">

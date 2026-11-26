@@ -1355,7 +1355,7 @@ export function App() {
   }
 
   return (
-    <div className={`min-h-screen flex flex-row overflow-x-hidden font-sans relative transition-colors duration-300 ${
+    <div className={`min-h-screen flex flex-row overflow-x-hidden font-sans relative transition-colors duration-300 print:min-h-0 print:bg-white print:text-slate-900 print:block ${
       state.theme === 'dark'
         ? 'bg-[#06040d] text-white selection:bg-cyan-500 selection:text-black'
         : 'bg-gradient-to-br from-[#e0f2fe] via-[#f7f4fc] to-[#fef2eb] text-[#1e1b4b] selection:bg-orange-300 selection:text-slate-900'
@@ -1378,7 +1378,7 @@ export function App() {
       />
 
       {/* Main App Workspace (Right of Sidebar) */}
-      <div className="flex-1 flex flex-col min-w-0 min-h-screen px-4 sm:px-6 py-2.5 relative z-10 overflow-y-auto">
+      <div className="flex-1 flex flex-col min-w-0 min-h-screen px-4 sm:px-6 py-2.5 relative z-10 overflow-y-auto print:p-0 print:min-h-0 print:overflow-visible print:block">
         {/* Top Header Bar */}
         <TopBar
           currentUser={activeUser}
@@ -1567,8 +1567,8 @@ export function App() {
           </div>
         ) : activeNav === 'analytics' ? (
           /* Full Analytics View */
-          <div className="w-full max-w-4xl mx-auto py-4 animate-fadeIn">
-            <div className="mb-4">
+          <div className="w-full max-w-4xl mx-auto py-4 animate-fadeIn print:max-w-none print:py-0 print:m-0">
+            <div className="mb-4 print:hidden">
               <button
                 type="button"
                 onClick={() => setActiveNav('dashboard')}

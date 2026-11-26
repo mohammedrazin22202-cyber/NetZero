@@ -61,7 +61,7 @@ export const ApprovalRequestsBanner: React.FC<ApprovalRequestsBannerProps> = ({
   };
 
   return (
-    <div className="w-full flex flex-col gap-2.5 my-2 select-none animate-fadeIn">
+    <div className="w-full flex flex-col gap-2.5 my-2 select-none animate-fadeIn print:hidden">
       {relevantTxs.map((t) => {
         const isRespondent = t.approvalRespondentId === currentUser.id;
         const isRequester = t.approvalRequestedBy === currentUser.id;

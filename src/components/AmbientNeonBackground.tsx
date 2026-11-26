@@ -10,7 +10,7 @@ export const AmbientNeonBackground: React.FC<AmbientNeonBackgroundProps> = ({
   const isLight = theme === 'light';
 
   return (
-    <div className="ambient-neon-bg fixed inset-0 pointer-events-none overflow-hidden z-0 select-none transition-opacity duration-500">
+    <div className="ambient-neon-bg fixed inset-0 pointer-events-none overflow-hidden z-0 select-none transition-opacity duration-500 print:hidden">
       {/* Ambient radial glow points */}
       {/* 1. Top-Left: Powder Blue */}
       <div 

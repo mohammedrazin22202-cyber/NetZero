@@ -30,7 +30,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   dbStatus = 'checking',
 }) => {
   return (
-    <header className="w-full flex items-center justify-between gap-4 py-2 select-none">
+    <header className="w-full flex items-center justify-between gap-4 py-2 select-none print:hidden">
       {/* Search Input Container */}
       <div className="relative w-[460px] max-w-full">
         <div className="relative flex items-center w-full">
