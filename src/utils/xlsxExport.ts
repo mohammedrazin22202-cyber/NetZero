@@ -1,4 +1,4 @@
-import ExcelJS from 'exceljs';
+import type ExcelJS from 'exceljs';
 import { AppState } from '../types';
 import { CATEGORIES } from './categories';
 import { formatDate, formatMoney } from './formatters';
@@ -44,6 +44,7 @@ function styleRange(
 }
 
 export async function buildXlsxWorkbook(state: AppState): Promise<ArrayBuffer> {
+  const ExcelJSMod = (await import('exceljs')).default;
   const d = computeStatementData(state);
   const c = state.currency;
   const sym = c.symbol.replace(/"/g, '');
@@ -51,7 +52,7 @@ export async function buildXlsxWorkbook(state: AppState): Promise<ArrayBuffer> {
   const fmtSignedMoney = `"+${sym}"#,##0.00;"-${sym}"#,##0.00;"${sym}"0.00`;
   const generatedStr = new Date().toLocaleDateString(undefined, { dateStyle: 'medium' });
 
-  const wb = new ExcelJS.Workbook();
+  const wb = new ExcelJSMod.Workbook();
   wb.creator = 'NetZero';
   wb.created = new Date();
 

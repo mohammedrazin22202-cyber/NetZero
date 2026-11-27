@@ -35,6 +35,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ state, onUpdateBud
   const currentBudget = state.monthlyBudgets?.[currentFriendId] || 0;
   const [isEditingBudget, setIsEditingBudget] = useState(false);
   const [budgetInput, setBudgetInput] = useState(currentBudget ? currentBudget.toString() : '');
+  const [isExportingExcel, setIsExportingExcel] = useState(false);
 
   // Filter out settlements, loans, and unapproved transactions for spending analytics
   const expenseTransactions = state.transactions.filter((t) => {
@@ -129,19 +130,25 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ state, onUpdateBud
   const isOverBudget = currentBudget > 0 && currentMonthSpend > currentBudget;
 
   const handleExportExcel = async () => {
-    const buffer = await buildXlsxWorkbook(state);
-    const blob = new Blob([buffer], {
-      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    const friendSlug = (friend.name || 'ledger').toLowerCase().replace(/[^a-z0-9]+/g, '-');
-    a.download = `netzero-trading-pnl-${friendSlug}-${new Date().toISOString().slice(0, 10)}.xlsx`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    if (isExportingExcel) return;
+    setIsExportingExcel(true);
+    try {
+      const buffer = await buildXlsxWorkbook(state);
+      const blob = new Blob([buffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const friendSlug = (friend.name || 'ledger').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      a.download = `netzero-trading-pnl-${friendSlug}-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } finally {
+      setIsExportingExcel(false);
+    }
   };
 
   return (
@@ -166,11 +173,12 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ state, onUpdateBud
           <button
             type="button"
             onClick={handleExportExcel}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-emerald-300 dark:border-emerald-600/50 bg-emerald-50 dark:bg-emerald-950/50 text-xs font-semibold text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 transition-colors shadow-sm"
+            disabled={isExportingExcel}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-emerald-300 dark:border-emerald-600/50 bg-emerald-50 dark:bg-emerald-950/50 text-xs font-semibold text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 disabled:opacity-60 transition-colors shadow-sm"
             title="Download native Excel Trading & P&L workbook (.xlsx)"
           >
             <FileSpreadsheet className="w-3.5 h-3.5" />
-            <span>Excel (.xlsx)</span>
+            <span>{isExportingExcel ? 'Exporting...' : 'Excel (.xlsx)'}</span>
           </button>
           <button
             type="button"
